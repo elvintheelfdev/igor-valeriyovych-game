@@ -11,10 +11,10 @@ const artScale = (worldWidth / artWidth) * 0.85
 const buildingLeft = 32
 const foundationY = 766
 const buildingTop = foundationY - artHeight * artScale
-// Foot positions are on the visible floor just in front of the elevator doors.
-export const floorLevels = [782, 603, 422, 239].map(y => buildingTop + y * artScale)
+// Foot positions follow the center of each elevator threshold.
+export const floorLevels = [765, 588, 408, 227].map(y => buildingTop + y * artScale)
 export const elevatorX = buildingLeft + 304 * artScale
-export const floorBounds = { left: buildingLeft + 273 * artScale, right: buildingLeft + 1749 * artScale }
+export const floorBounds = { left: elevatorX, right: buildingLeft + 1749 * artScale }
 
 export function loadBuilding(scene: Phaser.Scene) {
   scene.load.image(cityArt, new URL('./office-background.png', import.meta.url).href)
