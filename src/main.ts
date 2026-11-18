@@ -1,6 +1,6 @@
 import Phaser from 'phaser'
 import './style.css'
-import { addBuilding, addCanopy, loadBuilding, worldHeight, worldWidth } from './building'
+import { addBuilding, loadBuilding, worldHeight, worldWidth } from './building'
 
 const igorUrl = new URL('./igor-idle.png', import.meta.url).href
 const igorArt = 'igor-idle'
@@ -25,8 +25,6 @@ class Office extends Phaser.Scene {
     const igor = this.add.image(igorX, igorFloorY, igorArt)
       .setOrigin(0.5, 0.978).setName('Igor')
     igor.setScale(igorHeight / igor.height)
-
-    addCanopy(this)
 
     const camera = this.cameras.main
     camera.setBounds(0, 0, worldWidth, worldHeight)
