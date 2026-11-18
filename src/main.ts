@@ -20,7 +20,7 @@ class Office extends Phaser.Scene {
 
     const igorX = 690
     const igorFloorY = floorLevels[0]
-    const igorHeight = 94
+    const igorHeight = 72
     const shadow = this.add.ellipse(igorX, igorFloorY, 24, 3, 0x291b16, 0.34)
     const igor = this.add.image(igorX, igorFloorY, igorArt)
       .setOrigin(0.5, 0.978).setName('Igor')
