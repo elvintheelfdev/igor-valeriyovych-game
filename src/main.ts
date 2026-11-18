@@ -1,73 +1,22 @@
 import Phaser from 'phaser'
 import './style.css'
+import { addBuilding, addCanopy, loadBuilding, worldHeight, worldWidth } from './building'
 
-const backgroundUrl = new URL('./office-background.png', import.meta.url).href
 const igorUrl = new URL('./igor-idle.png', import.meta.url).href
-const officeArt = 'office-background'
-const architectureArt = 'office-architecture'
-const canopyArt = 'entrance-canopy'
 const igorArt = 'igor-idle'
 const cameraViewHeight = 325
 const walkableFloor = { left: 258, right: 1582, top: 511, bottom: 523, baseline: 518 }
-const entranceCanopy = [
-  { x: 987, y: 540 },
-  { x: 1020, y: 512 },
-  { x: 1271, y: 512 },
-  { x: 1271, y: 535 },
-  { x: 1024, y: 535 },
-  { x: 987, y: 560 },
-]
 const walkSpeed = 125
 const dragThreshold = 8
-const officeSections = [
-  { name: 'leadership-floor', top: 0 },
-  { name: 'mentoring-floor', top: 238 },
-  { name: 'hiring-floor', top: 394 },
-  { name: 'team-life-and-entrance', top: 533 },
-  { name: 'street', top: 799 },
-]
 
 class Office extends Phaser.Scene {
   preload() {
-    this.load.image(officeArt, backgroundUrl)
+    loadBuilding(this)
     this.load.image(igorArt, igorUrl)
   }
 
   create() {
-    const source = this.textures.get(officeArt).getSourceImage() as HTMLImageElement
-    const { width: worldWidth, height: worldHeight } = source
-    const canopyX = 987
-    const canopyY = 512
-    if (!this.textures.exists(canopyArt)) {
-      const canopy = this.textures.createCanvas(canopyArt, 284, 48)!
-      const context = canopy.context
-      context.beginPath()
-      for (const { x, y } of entranceCanopy) context.lineTo(x - canopyX, y - canopyY)
-      context.closePath()
-      context.save()
-      context.clip()
-      context.drawImage(source, -canopyX, -canopyY)
-      context.restore()
-      canopy.refresh()
-
-      const background = this.textures.createCanvas(architectureArt, worldWidth, worldHeight)!
-      background.context.drawImage(source, 0, 0)
-      background.context.globalCompositeOperation = 'destination-out'
-      background.context.drawImage(canopy.canvas, canopyX, canopyY)
-      background.context.globalCompositeOperation = 'source-over'
-      background.refresh()
-    }
-
-    const texture = this.textures.get(architectureArt)
-    const architecture = this.add.layer().setName('Office architecture')
-    for (const [index, section] of officeSections.entries()) {
-      const bottom = officeSections[index + 1]?.top ?? worldHeight
-      if (!texture.has(section.name)) {
-        texture.add(section.name, 0, 0, section.top, worldWidth, bottom - section.top)
-      }
-      architecture.add(this.add.image(0, section.top, architectureArt, section.name)
-        .setOrigin(0).setName(section.name))
-    }
+    addBuilding(this)
 
     const igorX = 690
     const igorFloorY = walkableFloor.baseline
@@ -77,8 +26,7 @@ class Office extends Phaser.Scene {
       .setOrigin(0.5, 0.978).setName('Igor')
     igor.setScale(igorHeight / igor.height)
 
-    this.add.image(canopyX, canopyY, canopyArt).setOrigin(0)
-      .setName('Entrance canopy').setDepth(1)
+    addCanopy(this)
 
     const camera = this.cameras.main
     camera.setBounds(0, 0, worldWidth, worldHeight)
