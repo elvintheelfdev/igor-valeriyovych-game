@@ -2,17 +2,24 @@ import Phaser from 'phaser'
 import './style.css'
 import { addBuilding, elevatorX, floorBounds, floorLevels, loadBuilding, worldHeight, worldWidth } from './building'
 
-const igorUrl = new URL('./igor-idle.png', import.meta.url).href
-const igorArt = 'igor-idle'
+const igorArt = 'igor'
+const frameWidth = 192
+const frameHeight = 256
+const idleFrame = 0
+const walkFrameCount = 16
+const strideLength = 58
 const cameraViewHeight = 325
-const walkSpeed = 125
+const walkSpeed = 68
 const elevatorSpeed = 220
 const dragThreshold = 8
 
 class Office extends Phaser.Scene {
   preload() {
     loadBuilding(this)
-    this.load.image(igorArt, igorUrl)
+    this.load.spritesheet(igorArt, new URL('./igor.png', import.meta.url).href, {
+      frameWidth,
+      frameHeight,
+    })
   }
 
   create() {
@@ -22,9 +29,8 @@ class Office extends Phaser.Scene {
     const igorFloorY = floorLevels[0]
     const igorHeight = 72
     const shadow = this.add.ellipse(igorX, igorFloorY, 16, 2, 0x291b16, 0.34)
-    const igor = this.add.image(igorX, igorFloorY, igorArt)
-      .setOrigin(0.5, 0.978).setName('Igor')
-    igor.setScale(igorHeight / igor.height)
+    const igor = this.add.image(igorX, igorFloorY, igorArt, idleFrame)
+      .setOrigin(0.5, 250 / frameHeight).setScale(igorHeight / frameHeight).setName('Igor')
 
     const camera = this.cameras.main
     camera.setBounds(0, 0, worldWidth, worldHeight)
@@ -45,6 +51,12 @@ class Office extends Phaser.Scene {
     let floor = 0
     let elevatorFloor: number | undefined
     let destination: { x: number; floor: number } | undefined
+    let strideDistance = 0
+    const showIdle = () => {
+      strideDistance = 0
+      if (Number(igor.frame.name) !== idleFrame) igor.setFrame(idleFrame)
+    }
+
     const moveIgor = (_time: number, delta: number) => {
       const direction = Number(right.isDown || d.isDown) - Number(left.isDown || a.isDown)
       const seconds = Math.min(delta, 50) / 1000
@@ -52,6 +64,7 @@ class Office extends Phaser.Scene {
         if (direction !== 0) destination = undefined
         if (destination && destination.floor !== floor && igor.x === elevatorX) {
           elevatorFloor = destination.floor
+          showIdle()
           igor.setVisible(false)
           shadow.setVisible(false)
         }
@@ -72,12 +85,21 @@ class Office extends Phaser.Scene {
       } else {
         const targetX = direction !== 0 ? (direction > 0 ? floorBounds.right : floorBounds.left)
           : destination && (destination.floor === floor ? destination.x : elevatorX)
-        if (targetX === undefined) return
+        if (targetX === undefined || targetX === igor.x) {
+          if (destination?.floor === floor) destination = undefined
+          showIdle()
+          return
+        }
         const distance = targetX - igor.x
         const step = walkSpeed * seconds
-        igor.x = Math.abs(distance) <= step ? targetX : igor.x + Math.sign(distance) * step
+        const travel = Math.min(Math.abs(distance), step)
+        if (travel === 0) return
+        igor.x = travel === Math.abs(distance) ? targetX : igor.x + Math.sign(distance) * travel
         shadow.x = igor.x
-        if (distance !== 0) igor.setFlipX(distance < 0)
+        igor.setFlipX(distance < 0)
+        strideDistance = (strideDistance + travel) % strideLength
+        const frame = 1 + Math.floor(strideDistance / strideLength * walkFrameCount)
+        if (Number(igor.frame.name) !== frame) igor.setFrame(frame)
       }
       if (destination?.floor === floor && destination.x === igor.x) destination = undefined
 
