@@ -34,7 +34,17 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     const texture = scene.textures.getFrame(key)
     const height = props[key].height * scale
     const width = height * texture.width / texture.height
-    if (key === 'meeting-table') {
+    if (key === 'paired-workstations') {
+      scene.add.ellipse(worldX, worldY - height * 0.025, width * 0.48, 5 * scale, 0x392c23, 0.16)
+      for (const side of [-1, 1]) {
+        scene.add.ellipse(worldX + side * width * 0.35, worldY - height * 0.05,
+          width * 0.065, 4 * scale, 0x392c23, 0.19)
+        for (const wheel of [0.25, 0.48]) {
+          scene.add.ellipse(worldX + side * width * wheel, worldY - height * 0.095,
+            width * 0.043, 3 * scale, 0x392c23, 0.14)
+        }
+      }
+    } else if (key === 'meeting-table') {
       const contacts = [
         { x: -0.46, y: 0.11, width: 0.045 },
         { x: -0.34, y: 0.015, width: 0.05 },
