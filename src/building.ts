@@ -92,7 +92,7 @@ export function addBuilding(scene: Phaser.Scene) {
 
   scene.add.image(buildingLeft, buildingTop, officeArt, '__BASE').setOrigin(0).setScale(artScale)
     .setName('Office building')
-  const coworkers = addFurniture(scene, buildingLeft, buildingTop, artScale)
+  const { coworkers, coffeeCompanion } = addFurniture(scene, buildingLeft, buildingTop, artScale)
 
   const texture = scene.textures.get(officeArt)
   if (!texture.has('exit-left')) {
@@ -152,5 +152,5 @@ export function addBuilding(scene: Phaser.Scene) {
   lifts.forEach(draw => draw(0))
   interior(0)
 
-  return { interior, lifts, coworkers }
+  return { interior, lifts, coworkers, coffeeCompanion }
 }

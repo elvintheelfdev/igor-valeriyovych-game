@@ -149,3 +149,239 @@ canvas { display: block; }
 
   .office-hud button { min-height: 2.25rem; }
 }
+
+.office-dialogue {
+  --portrait-size: clamp(5.5rem, 11vw, 10.25rem);
+  --ink: #41251b;
+  --paper: #ffdb98;
+  --handwriting: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  position: absolute;
+  z-index: 3;
+  bottom: max(1.45rem, env(safe-area-inset-bottom));
+  left: 50%;
+  display: grid;
+  grid-template-columns: var(--portrait-size) minmax(0, 1fr) var(--portrait-size);
+  align-items: end;
+  width: min(75rem, calc(100% - 3.5rem), 80vw);
+  color: var(--ink);
+  font: 650 clamp(0.91rem, 1.36vw, 1.25rem)/1.4 var(--handwriting);
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+.office-dialogue[hidden] { display: none; }
+
+.dialogue-card {
+  --tilt: -8deg;
+  --card-edge: #795744;
+  --card-paper: #ead0a6;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  aspect-ratio: 0.92;
+  box-sizing: border-box;
+  padding: 5%;
+  border: 2px solid var(--card-edge);
+  border-radius: 5% 3% 6% 4%;
+  background: linear-gradient(145deg, #fff0cb, var(--card-paper) 72%, #c69a70);
+  box-shadow: 0 3px 0 #51362c, 0 7px 14px #35211961;
+  transform: rotate(var(--tilt));
+  transform-origin: bottom center;
+}
+
+.dialogue-npc { --tilt: 8deg; }
+
+.dialogue-portrait {
+  width: 100%;
+  height: 100%;
+  border-radius: 3% 5%;
+  background:
+    repeating-linear-gradient(145deg, transparent 0 6px, #fff0ce0c 7px 8px),
+    linear-gradient(125deg, #c0a18a, #795f56 78%);
+  filter: saturate(0.72);
+}
+
+.office-dialogue[data-speaker="ihor"] .dialogue-ihor,
+.office-dialogue[data-speaker="npc"] .dialogue-npc {
+  --card-edge: #694226;
+  --card-paper: #ffe1ae;
+  z-index: 2;
+  box-shadow: 0 3px 0 #51362c, 0 6px 13px #35211961, 0 0 0 2px #fff0cc85;
+}
+
+.office-dialogue[data-speaker="ihor"] .dialogue-ihor .dialogue-portrait,
+.office-dialogue[data-speaker="npc"] .dialogue-npc .dialogue-portrait {
+  background:
+    repeating-linear-gradient(145deg, transparent 0 6px, #fff0ce17 7px 8px),
+    radial-gradient(circle at 50% 33%, #eed0ab, #a27862 78%);
+  filter: none;
+}
+
+.dialogue-card::before {
+  position: absolute;
+  z-index: 1;
+  top: -24%;
+  left: -24%;
+  width: 51%;
+  height: 41%;
+  background: #ffb544;
+  clip-path: polygon(46% 2%, 64% 0%, 81% 60%, 71% 65%, 25% 24%,
+    18% 36%, 63% 73%, 59% 83%, 0% 76%, 0% 93%, 60% 94%, 89% 81%);
+  transform: rotate(5deg);
+  filter: drop-shadow(0 1px 0 #87522c);
+  pointer-events: none;
+}
+
+.dialogue-npc::before {
+  right: -24%;
+  left: auto;
+  transform: scaleX(-1) rotate(5deg);
+}
+
+.office-dialogue[data-speaker="ihor"] .dialogue-ihor::before,
+.office-dialogue[data-speaker="npc"] .dialogue-npc::before { content: ""; }
+
+.dialogue-center {
+  position: relative;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(0.3rem, 1vw, 0.75rem);
+  min-height: clamp(5.7rem, 9vw, 8.2rem);
+  box-sizing: border-box;
+  margin-inline: -0.5rem;
+  padding: 1.05rem clamp(0.7rem, 2.5vw, 2.25rem) 0.72rem;
+  border: 2px solid #513324;
+  border-radius: 1.2rem 0.95rem 1.05rem 0.8rem / 0.85rem 1.15rem 0.9rem 1.2rem;
+  background:
+    radial-gradient(ellipse at 43% 20%, #fff5d36e 0 18%, transparent 68%),
+    repeating-linear-gradient(115deg, transparent 0 4px, #a55b2210 5px, transparent 6px 10px),
+    linear-gradient(155deg, #ffe9b4, var(--paper) 57%, #edb775);
+  box-shadow: inset 0 0 0 3px #f7ba785f, inset 0 -4px #d7894c65,
+    0 4px 0 #73422d, 0 8px 14px #38211561;
+}
+
+.dialogue-center::before,
+.dialogue-center::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  bottom: 12%;
+  left: -1.36rem;
+  width: 1.55rem;
+  height: 1.83rem;
+  clip-path: polygon(100% 0%, 100% 77%, 43% 94%, 0% 100%, 45% 61%);
+  background: #513324;
+  pointer-events: none;
+}
+
+.dialogue-center::after {
+  left: -1.13rem;
+  bottom: calc(12% + 0.09rem);
+  width: 1.38rem;
+  height: 1.7rem;
+  background: #f8cd8e;
+}
+
+.office-dialogue[data-speaker="npc"] .dialogue-center::before,
+.office-dialogue[data-speaker="npc"] .dialogue-center::after {
+  left: auto;
+  right: -1.36rem;
+  transform: scaleX(-1);
+}
+
+.office-dialogue[data-speaker="npc"] .dialogue-center::after { right: -1.13rem; }
+
+.dialogue-copy { min-width: 0; }
+
+.dialogue-speaker {
+  position: absolute;
+  top: 0;
+  left: 0.75rem;
+  max-width: calc(100% - 1.5rem);
+  box-sizing: border-box;
+  padding: 0.26rem 1.45rem 0.34rem 1rem;
+  clip-path: polygon(0 10%, 8% 1%, 70% 3%, 100% 11%, 94% 48%, 100% 87%, 55% 96%, 0 100%);
+  background: linear-gradient(175deg, #963326, #bd4a3a 16%, #a5362b 79%, #78271d);
+  color: #fff4dc;
+  text-shadow: 0 1px #70251d;
+  font-size: 0.84em;
+  font-weight: 800;
+  transform: translateY(-67%) rotate(-1deg);
+}
+
+.office-dialogue[data-speaker="npc"] .dialogue-speaker {
+  right: 0.75rem;
+  left: auto;
+  padding-inline: 1.45rem 1rem;
+  clip-path: polygon(100% 10%, 92% 1%, 30% 3%, 0 11%, 6% 48%, 0 87%, 45% 96%, 100% 100%);
+  transform: translateY(-67%) rotate(1deg);
+}
+
+.dialogue-line {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.dialogue-phrase {
+  font-size: clamp(1.12rem, 2.3vw, 2.05rem);
+  font-weight: 900;
+  line-height: 1.22;
+}
+
+.dialogue-translation {
+  margin: 0.22rem 0 0;
+  color: #633e28;
+  font-size: 0.87em;
+}
+
+.dialogue-advance {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.dialogue-advance::before {
+  content: "";
+  border-block: 0.55rem solid transparent;
+  border-left: 0.82rem solid currentColor;
+  transform: translateX(9%);
+}
+
+.dialogue-advance:hover { background: #9e4c2220; }
+.dialogue-advance:focus-visible { outline: 2px solid #7b4329; }
+
+@media (max-width: 650px) {
+  .office-dialogue {
+    --portrait-size: clamp(3rem, 14vw, 5.5rem);
+    bottom: max(1.1rem, env(safe-area-inset-bottom));
+    width: calc(100% - 1.5rem);
+    font-size: 0.86rem;
+  }
+
+  .dialogue-center {
+    min-height: 6.45rem;
+    gap: 0;
+    margin-inline: -0.16rem;
+    padding: 0.95rem 0.25rem 0.55rem 0.65rem;
+  }
+
+  .dialogue-center::before,
+  .dialogue-center::after { width: 1rem; }
+  .dialogue-center::before { left: -0.81rem; }
+  .dialogue-center::after { left: -0.62rem; }
+  .office-dialogue[data-speaker="npc"] .dialogue-center::before { right: -0.81rem; }
+  .office-dialogue[data-speaker="npc"] .dialogue-center::after { right: -0.62rem; }
+
+  .dialogue-speaker { left: 0.35rem; }
+  .office-dialogue[data-speaker="npc"] .dialogue-speaker { right: 0.35rem; }
+}

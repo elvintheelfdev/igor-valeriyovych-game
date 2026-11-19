@@ -1,22 +1,32 @@
 import Phaser from 'phaser'
 import { coffeeStop, type Destination } from './building'
+import { OfficeDialogue } from './dialogue'
+import { dialogueScenes } from './dialogue-scenes'
 
 const incidents = {
   junior: {
     title: 'Junior needs help', cue: '?', doing: 'Mentoring a junior', done: 'Junior ready to continue',
-    duration: 2.6, patience: 54, points: 100,
+    patience: 54, points: 100,
   },
   interview: {
     title: 'Interview waiting', cue: 'I', doing: 'Conducting the interview', done: 'Interview complete',
-    duration: 4, patience: 65, points: 160,
+    patience: 65, points: 160,
   },
   staffing: {
     title: 'Staffing request', cue: 'S', doing: 'Discussing project allocation', done: 'Project staffed',
-    duration: 3.2, patience: 59, points: 130,
+    patience: 59, points: 130,
   },
   management: {
     title: 'Management meeting', cue: 'M', doing: 'Attending the management meeting', done: 'Meeting complete',
-    duration: 4.5, patience: 67, points: 175,
+    patience: 67, points: 175,
+  },
+  training: {
+    title: 'Lecture / Training', cue: 'T', doing: 'Leading a training session', done: 'Training complete',
+    patience: 61, points: 150,
+  },
+  event: {
+    title: 'Team event issue', cue: 'E', doing: 'Planning the team event', done: 'Team event rescheduled',
+    patience: 60, points: 140,
   },
 } as const
 
@@ -46,7 +56,7 @@ type Incident = {
   startedAt: number
 }
 
-type Assignment = { incident: Incident; work: number } | { coffee: true; work: number }
+type Assignment = { incident: Incident } | { coffee: true }
 
 const bestKey = 'cosplay-ihor-best'
 
@@ -61,6 +71,7 @@ function readBest() {
 
 export class OfficeIncidents {
   private readonly colleagues: Colleague[]
+  private readonly dialogue: OfficeDialogue
   private readonly active: Incident[] = []
   private readonly feedback = new Map<Colleague, HTMLElement>()
   private readonly hud = document.createElement('section')
@@ -72,7 +83,7 @@ export class OfficeIncidents {
   private readonly stressLabel: HTMLElement
   private readonly coffeeButton: HTMLButtonElement
   private readonly list: HTMLElement
-  private readonly roleCount: Record<Role, number> = { junior: 0, interview: 0, staffing: 0, management: 0 }
+  private readonly roleCount: Record<Role, number> = { junior: 0, interview: 0, staffing: 0, management: 0, training: 0, event: 0 }
   private assignment?: Assignment
   private elapsed = 0
   private nextIncident = 2
@@ -87,10 +98,12 @@ export class OfficeIncidents {
     private readonly scene: Phaser.Scene,
     host: HTMLElement,
     coworkers: OfficeNPC[],
+    ihor: Phaser.GameObjects.Image,
+    private readonly coffeeCompanion: Phaser.GameObjects.Sprite,
     private readonly goTo: (destination?: Destination) => void,
   ) {
     this.colleagues = coworkers.map(npc => {
-      const normal = npc.role === 'junior' || npc.role === 'staffing' ? 'working' : 'idle'
+      const normal = npc.role === 'interview' || npc.role === 'management' ? 'idle' : 'working'
       return { ...npc, normal, state: normal, until: 0 }
     })
 
@@ -115,25 +128,28 @@ export class OfficeIncidents {
     this.coffeeButton = this.hud.querySelector('.coffee-button')!
     this.list = this.hud.querySelector('.hud-incidents')!
     this.coffeeButton.addEventListener('click', () => {
-      if (this.ended || this.coffee === 0 || this.isTakingCoffee()) return
+      if (this.ended || this.inDialogue || this.coffee === 0 || this.isTakingCoffee()) return
       this.cancel()
-      this.assignment = { coffee: true, work: 0 }
+      this.assignment = { coffee: true }
       this.goTo(coffeeStop)
       this.status.textContent = 'Heading outside for coffee'
     })
 
     this.layer.className = 'incident-layer'
     host.append(this.layer, this.hud)
+    this.dialogue = new OfficeDialogue(host, ihor)
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.dialogue.destroy()
       this.hud.remove()
       this.layer.remove()
     })
   }
 
   get gameOver() { return this.ended }
+  get inDialogue() { return this.dialogue.active }
 
   cancel() {
-    if (!this.assignment) return
+    if (!this.assignment || this.inDialogue) return
     if ('incident' in this.assignment) {
       const { npc } = this.assignment.incident
       this.setState(npc, 'needsHelp')
@@ -144,7 +160,7 @@ export class OfficeIncidents {
   }
 
   update(delta: number, player: Destination, canInteract: boolean) {
-    if (this.ended) return
+    if (this.ended || this.inDialogue) return
     const seconds = delta / 1000
     this.elapsed += seconds
 
@@ -161,8 +177,8 @@ export class OfficeIncidents {
       if (this.ended) return
     }
 
-    if (canInteract) this.updateAssignment(player, seconds)
-    if (this.elapsed >= this.nextIncident && this.active.length < Math.min(4, 1 + this.level)) {
+    if (canInteract) this.updateAssignment(player)
+    if (!this.inDialogue && this.elapsed >= this.nextIncident && this.active.length < Math.min(4, 1 + this.level)) {
       if (this.spawn(player.floor)) this.nextIncident = this.elapsed + Math.max(5, 13 - this.level)
     }
     this.render()
@@ -171,9 +187,9 @@ export class OfficeIncidents {
   private get level() { return 1 + Math.floor(Math.max(this.elapsed / 65, this.resolved / 6)) }
 
   private select(incident: Incident) {
-    if (this.ended || this.isSelected(incident) || !this.active.includes(incident)) return
+    if (this.ended || this.inDialogue || this.isSelected(incident) || !this.active.includes(incident)) return
     this.cancel()
-    this.assignment = { incident, work: 0 }
+    this.assignment = { incident }
     this.setState(incident.npc, 'waiting')
     this.goTo({ x: incident.npc.person.x, floor: incident.npc.floor })
     this.status.textContent = 'On the way · ' + incidents[incident.npc.role].title
@@ -254,29 +270,44 @@ export class OfficeIncidents {
     })
   }
 
-  private updateAssignment(player: Destination, seconds: number) {
+  private updateAssignment(player: Destination) {
     const assignment = this.assignment
     if (!assignment) return
     if ('coffee' in assignment) {
       if (player.floor !== coffeeStop.floor || Math.abs(player.x - coffeeStop.x) > 0.5) return
-      assignment.work += seconds
       this.status.textContent = 'Taking a coffee break'
-      if (assignment.work < 2) return
-      this.coffee--
-      this.stress = Math.max(0, this.stress - 35)
-      this.assignment = undefined
-      this.status.textContent = 'Coffee break complete · Stress reduced'
+      this.startDialogue('coffee', this.coffeeCompanion, () => {
+        this.coffee--
+        this.stress = Math.max(0, this.stress - 35)
+        this.assignment = undefined
+        this.status.textContent = 'Coffee break complete ? Stress reduced'
+      })
       return
     }
 
     const { incident } = assignment
     const { npc } = incident
     if (player.floor !== npc.floor || Math.abs(player.x - npc.person.x) > 0.5) return
+    this.setState(npc, 'beingHelped')
+    this.status.textContent = incidents[npc.role].doing
+    this.startDialogue(npc.role, npc.person, () => this.resolve(incident))
+  }
+
+  private startDialogue(
+    key: keyof typeof dialogueScenes, person: Phaser.GameObjects.Sprite, complete: () => void,
+  ) {
+    const { name, lines } = dialogueScenes[key]
+    this.hud.inert = this.layer.inert = true
+    this.dialogue.open(name, person, lines, () => {
+      this.hud.inert = this.layer.inert = false
+      complete()
+      this.render()
+    })
+  }
+
+  private resolve(incident: Incident) {
+    const { npc } = incident
     const task = incidents[npc.role]
-    if (npc.state === 'waiting') this.setState(npc, 'beingHelped')
-    assignment.work += seconds
-    this.status.textContent = task.doing
-    if (assignment.work < task.duration) return
     this.assignment = undefined
     this.score += task.points + Math.ceil(incident.remaining)
     if (this.score > this.best) {
@@ -373,9 +404,10 @@ export class OfficeIncidents {
       const selected = Boolean(this.isSelected(incident))
       const helping = npc.state === 'beingHelped'
       const countdown = Math.max(0, Math.ceil(incident.remaining)) + 's'
-      const progress = helping && this.assignment ? Math.min(100, Math.floor(this.assignment.work / task.duration * 100)) + '%' : countdown
+      const progress = helping ? 'In conversation' : countdown
       const label = task.title + ' · F' + (npc.floor + 1) + ' · ' + progress
-      if (marker.textContent !== task.cue + ' ' + progress) marker.textContent = task.cue + ' ' + progress
+      const markerText = helping ? '?' : task.cue + ' ' + countdown
+      if (marker.textContent !== markerText) marker.textContent = markerText
       if (entry.textContent !== label) entry.textContent = label
       marker.setAttribute('aria-label', label)
       marker.toggleAttribute('data-selected', selected)

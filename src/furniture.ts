@@ -273,7 +273,8 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
         seatCoworker(mirrored, x - 47, y - 2, mirrored, floor, floor > 0 && index === 0 ? 'staffing' : 'junior')
       }
       if ((index + floor) % 3 !== 1) {
-        seatCoworker(!mirrored, x + 47, y - 2, mirrored, floor)
+        const role = index === 1 && floor > 0 ? (floor === 1 ? 'training' : 'event') : 'junior'
+        seatCoworker(!mirrored, x + 47, y - 2, mirrored, floor, role)
       }
       scene.add.image(workstation.x, workstation.y, armrests)
         .setOrigin(0.5, 1)
@@ -327,12 +328,13 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
       })
     }
     person.play({ key, delay: index * 390 })
+    return person
   }
 
   placeCoffeeDrinker(0, 1308, 788, 73)
   placeCoffeeDrinker(1, 1390, 791, 81, true)
   // Keep the coffee group at the back of the pavement, clear of Igor's silhouette.
-  placeCoffeeDrinker(2, 2005, 754, 77)
+  const coffeeCompanion = placeCoffeeDrinker(2, 2005, 754, 77)
   placeCoffeeDrinker(3, 2115, 759, 80, true)
 
   const { person: walker, shadow } = placeCoworker(walking, 1103, 226, 80)
@@ -362,5 +364,5 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     },
   })
 
-  return coworkers
+  return { coworkers, coffeeCompanion }
 }

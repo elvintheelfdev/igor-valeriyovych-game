@@ -70,7 +70,8 @@ class Office extends Phaser.Scene {
     let passageTarget: number | undefined
     const insideLanding = interiorDoorX - 42
     let followPending = false
-    const gameplay = new OfficeIncidents(this, host, doors.coworkers, target => { destination = target })
+    const gameplay = new OfficeIncidents(this, host, doors.coworkers, igor, doors.coffeeCompanion,
+      target => { destination = target })
     const walkTo = (target: Destination) => {
       gameplay.cancel()
       destination = target
@@ -176,11 +177,12 @@ class Office extends Phaser.Scene {
     }
 
     const tick = (time: number, delta: number) => {
-      if (gameplay.gameOver) return
+      if (gameplay.gameOver || gameplay.inDialogue) return
       moveIgor(time, delta)
       if (!overview && followPending) followIgor(delta)
       gameplay.update(Math.min(delta, 50), { x: igor.x, floor },
         igor.visible && elevatorFloor === undefined && passageTarget === undefined)
+      if (gameplay.inDialogue) showIdle()
     }
 
     const followIgor = (delta: number) => {
@@ -207,13 +209,13 @@ class Office extends Phaser.Scene {
     })
     this.input.on('pointerdown', () => host.focus({ preventScroll: true }))
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (overview || !pointer.isDown || pointer.getDistance() < dragThreshold) return
+      if (gameplay.inDialogue || overview || !pointer.isDown || pointer.getDistance() < dragThreshold) return
       followPending = false
       camera.scrollX -= (pointer.x - pointer.prevPosition.x) / camera.zoom
       camera.scrollY -= (pointer.y - pointer.prevPosition.y) / camera.zoom
     })
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
-      if (gameplay.gameOver || pointer.button !== 0 || pointer.getDistance() >= dragThreshold) return
+      if (gameplay.gameOver || gameplay.inDialogue || pointer.button !== 0 || pointer.getDistance() >= dragThreshold) return
       if (pointer.event.target instanceof HTMLElement && pointer.event.target.closest('button')) return
       const point = camera.getWorldPoint(pointer.x, pointer.y)
       if (interiorDoorBounds.contains(point.x, point.y)) {
@@ -224,7 +226,7 @@ class Office extends Phaser.Scene {
       if (target) walkTo(target)
     })
     host.addEventListener('wheel', (event) => {
-      if (event.target instanceof HTMLElement && event.target.closest('.office-hud')) return
+      if (gameplay.inDialogue || (event.target instanceof HTMLElement && event.target.closest('.office-hud'))) return
       event.preventDefault()
       if (overview) return
       followPending = false
@@ -233,7 +235,7 @@ class Office extends Phaser.Scene {
       if (!event.shiftKey) camera.scrollY += event.deltaY * multiplier / camera.zoom
     }, { passive: false, signal })
     window.addEventListener('keydown', (event) => {
-      if (event.target instanceof HTMLButtonElement) return
+      if (gameplay.inDialogue || event.target instanceof HTMLButtonElement) return
       if (event.code === 'Space') {
         event.preventDefault()
         if (event.repeat) return
