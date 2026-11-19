@@ -25,23 +25,55 @@ const props = {
 
 const coworkers = {
   'seated-man': new URL('./people/seated-man.png', import.meta.url).href,
-  'seated-woman': new URL('./people/seated-woman.png', import.meta.url).href,
   'standing-man': new URL('./people/standing-man.png', import.meta.url).href,
   'standing-woman': new URL('./people/standing-woman.png', import.meta.url).href,
 }
 
+const typing = 'coworker-typing'
+const walking = 'coworker-walk'
+const typingFrameHeight = 724
+const typingBaseline = 712
+const walkFrameSize = 443
+const walkBaseline = 424
+const walkFrameCount = 8
+
 export function loadFurniture(scene: Phaser.Scene) {
   for (const [key, prop] of Object.entries(props)) scene.load.image(key, prop.url)
   for (const [key, url] of Object.entries(coworkers)) scene.load.image(key, url)
+  scene.load.spritesheet(typing, new URL('./people/coworker-typing.png', import.meta.url).href, {
+    frameWidth: 543, frameHeight: typingFrameHeight,
+  })
+  scene.load.spritesheet(walking, new URL('./people/coworker-walk.png', import.meta.url).href, {
+    frameWidth: walkFrameSize, frameHeight: walkFrameSize, endFrame: walkFrameCount - 1,
+  })
 }
 
 export function addFurniture(scene: Phaser.Scene, left: number, top: number, scale: number) {
-  const placeCoworker = (key: keyof typeof coworkers, x: number, y: number, height: number, flip = false) => {
+  if (!scene.anims.exists(typing)) {
+    scene.anims.create({
+      key: typing,
+      frames: scene.anims.generateFrameNumbers(typing, { frames: [0, 1, 2, 1, 2, 0, 3, 3, 0] }),
+      frameRate: 5,
+      repeat: -1,
+    })
+  }
+
+  const placeCoworker = (key: keyof typeof coworkers | typeof typing | typeof walking,
+    x: number, y: number, height: number, flip = false) => {
     const worldX = left + x * scale
     const worldY = top + y * scale
-    scene.add.ellipse(worldX, worldY, 18 * scale, 4 * scale, 0x392c23, 0.16)
-    const person = scene.add.image(worldX, worldY, key).setOrigin(0.5, 1)
-    person.setScale(height * scale / person.height).setFlipX(flip)
+    const shadow = scene.add.ellipse(worldX, worldY, 18 * scale, 4 * scale, 0x392c23, 0.16)
+    const person = scene.add.sprite(worldX, worldY, key)
+    const baseline = key === walking ? walkBaseline : key === typing ? typingBaseline : person.height
+    person.setOrigin(0.5, baseline / person.height).setScale(height * scale / baseline).setFlipX(flip)
+    return { person, shadow }
+  }
+
+  const seatCoworker = (woman: boolean, x: number, y: number, mirrored: boolean) => {
+    const { person } = placeCoworker(woman ? typing : 'seated-man', x, y, 70, woman ? !mirrored : mirrored)
+    if (woman) {
+      person.play({ key: typing, delay: Phaser.Math.Between(0, 900), repeatDelay: Phaser.Math.Between(400, 2400) })
+    }
   }
 
   const place = (key: keyof typeof props, x: number, y: number, flip = false) => {
@@ -84,10 +116,10 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
       const mirrored = (index + floor) % 2 === 1
       place('paired-workstations', x, y, mirrored)
       if ((index + floor) % 4 !== 3) {
-        placeCoworker(mirrored ? 'seated-woman' : 'seated-man', x - 47, y - 2, 70, mirrored)
+        seatCoworker(mirrored, x - 47, y - 2, mirrored)
       }
       if ((index + floor) % 3 !== 1) {
-        placeCoworker(mirrored ? 'seated-man' : 'seated-woman', x + 47, y - 2, 70, mirrored)
+        seatCoworker(!mirrored, x + 47, y - 2, mirrored)
       }
     }
   }
@@ -102,5 +134,31 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
   place('sideboard', 1539, topFloor, true)
   placeCoworker('standing-man', 1290, 786, 80)
   placeCoworker('standing-woman', 1350, 786, 77)
-  placeCoworker('standing-man', 1103, 226, 80, true)
+
+  const { person: walker, shadow } = placeCoworker(walking, 1103, 226, 80)
+  const startX = walker.x
+  const walkDistance = 176 * scale
+  const strideLength = 58 * scale
+  const passingFrame = 2
+  walker.setFrame(passingFrame)
+  scene.tweens.add({
+    targets: walker,
+    x: startX + walkDistance,
+    duration: 3700,
+    hold: 900,
+    repeatDelay: 900,
+    yoyo: true,
+    repeat: -1,
+    onYoyo: () => { walker.setFlipX(true) },
+    onRepeat: () => { walker.setFlipX(false) },
+    onUpdate: () => {
+      const offset = walker.x - startX
+      const travel = walker.flipX ? walkDistance - offset : offset
+      const frame = travel === 0 || travel === walkDistance
+        ? passingFrame
+        : Math.floor((travel % strideLength) / strideLength * walkFrameCount)
+      if (Number(walker.frame.name) !== frame) walker.setFrame(frame)
+      shadow.x = walker.x
+    },
+  })
 }
