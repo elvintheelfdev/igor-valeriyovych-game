@@ -179,7 +179,7 @@ class Office extends Phaser.Scene {
       if (gameplay.gameOver) return
       moveIgor(time, delta)
       if (!overview && followPending) followIgor(delta)
-      gameplay.update(delta, { x: igor.x, floor },
+      gameplay.update(Math.min(delta, 50), { x: igor.x, floor },
         igor.visible && elevatorFloor === undefined && passageTarget === undefined)
     }
 

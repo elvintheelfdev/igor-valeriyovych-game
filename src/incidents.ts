@@ -145,7 +145,7 @@ export class OfficeIncidents {
 
   update(delta: number, player: Destination, canInteract: boolean) {
     if (this.ended) return
-    const seconds = Math.min(delta, 100) / 1000
+    const seconds = delta / 1000
     this.elapsed += seconds
 
     for (const colleague of this.colleagues) {
@@ -332,6 +332,8 @@ export class OfficeIncidents {
       this.cooldown(incident.npc)
       this.remove(incident)
     }
+    for (const check of this.feedback.values()) check.remove()
+    this.feedback.clear()
     this.render()
     this.status.textContent = 'Shift over · Stress reached 100%'
     this.coffeeButton.disabled = true

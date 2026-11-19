@@ -145,8 +145,8 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     })
   }
 
-  const seatCoworker = (woman: boolean, x: number, y: number, mirrored: boolean, floor: number) => {
-    const role = (floor === 1 || floor === 2) && x === 432 - 47 ? 'staffing' : 'junior'
+  const seatCoworker = (woman: boolean, x: number, y: number, mirrored: boolean,
+    floor: number, role: OfficeNPC['role'] = 'junior') => {
     const index = seatedIndex++
     if (index >= 2) {
       const flip = woman ? !mirrored : mirrored
@@ -270,7 +270,7 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
       const mirrored = (index + floor) % 2 === 1
       const workstation = place('paired-workstations', x, y, mirrored)
       if ((index + floor) % 4 !== 3) {
-        seatCoworker(mirrored, x - 47, y - 2, mirrored, floor)
+        seatCoworker(mirrored, x - 47, y - 2, mirrored, floor, floor > 0 && index === 0 ? 'staffing' : 'junior')
       }
       if ((index + floor) % 3 !== 1) {
         seatCoworker(!mirrored, x + 47, y - 2, mirrored, floor)
