@@ -23,11 +23,27 @@ const props = {
   },
 }
 
+const coworkers = {
+  'seated-man': new URL('./people/seated-man.png', import.meta.url).href,
+  'seated-woman': new URL('./people/seated-woman.png', import.meta.url).href,
+  'standing-man': new URL('./people/standing-man.png', import.meta.url).href,
+  'standing-woman': new URL('./people/standing-woman.png', import.meta.url).href,
+}
+
 export function loadFurniture(scene: Phaser.Scene) {
   for (const [key, prop] of Object.entries(props)) scene.load.image(key, prop.url)
+  for (const [key, url] of Object.entries(coworkers)) scene.load.image(key, url)
 }
 
 export function addFurniture(scene: Phaser.Scene, left: number, top: number, scale: number) {
+  const placeCoworker = (key: keyof typeof coworkers, x: number, y: number, height: number, flip = false) => {
+    const worldX = left + x * scale
+    const worldY = top + y * scale
+    scene.add.ellipse(worldX, worldY, 18 * scale, 4 * scale, 0x392c23, 0.16)
+    const person = scene.add.image(worldX, worldY, key).setOrigin(0.5, 1)
+    person.setScale(height * scale / person.height).setFlipX(flip)
+  }
+
   const place = (key: keyof typeof props, x: number, y: number, flip = false) => {
     const worldX = left + x * scale
     const worldY = top + y * scale
@@ -65,7 +81,14 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
   for (const [floor, y] of [779, 605, 417].entries()) {
     const centers = floor === 0 ? [446, 668, 890, 1112] : [432, 648, 864, 1080, 1296, 1512]
     for (const [index, x] of centers.entries()) {
-      place('paired-workstations', x, y, (index + floor) % 2 === 1)
+      const mirrored = (index + floor) % 2 === 1
+      place('paired-workstations', x, y, mirrored)
+      if ((index + floor) % 4 !== 3) {
+        placeCoworker(mirrored ? 'seated-woman' : 'seated-man', x - 47, y - 2, 70, mirrored)
+      }
+      if ((index + floor) % 3 !== 1) {
+        placeCoworker(mirrored ? 'seated-man' : 'seated-woman', x + 47, y - 2, 70, mirrored)
+      }
     }
   }
   place('kitchenette', 1432, 779)
@@ -77,4 +100,7 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
   place('meeting-table', 1007, topFloor + 10)
   place('executive-desk', 1415, topFloor)
   place('sideboard', 1539, topFloor, true)
+  placeCoworker('standing-man', 1290, 786, 80)
+  placeCoworker('standing-woman', 1350, 786, 77)
+  placeCoworker('standing-man', 1103, 226, 80, true)
 }

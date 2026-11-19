@@ -31,7 +31,7 @@ class Office extends Phaser.Scene {
     const doors = addBuilding(this)
 
     const igorX = 690
-    const igorFloorY = floorLevels[0]
+    const igorFloorY = walkingY(0, igorX)
     const igorHeight = 72
     const shadow = this.add.ellipse(igorX, igorFloorY, 16, 2, 0x291b16, 0.34)
     const igor = this.add.image(igorX, igorFloorY, igorArt, idleFrame)
