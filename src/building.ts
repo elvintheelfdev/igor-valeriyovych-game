@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { addFurniture, loadFurniture } from './furniture'
 
 export const worldWidth = 1731
 export const worldHeight = 909
@@ -19,13 +20,15 @@ export const floorBounds = { left: elevatorX, right: buildingLeft + 1749 * artSc
 const artX = (x: number) => buildingLeft + x * artScale
 const artY = (y: number) => buildingTop + y * artScale
 const exitThresholdY = artY(786)
+export const interiorDoorX = artX(1715)
 const groundRoute = [
-  { x: artX(1595), y: floorLevels[0] },
-  { x: artX(1715), y: exitThresholdY },
+  { x: elevatorX, y: floorLevels[0] },
+  { x: artX(350), y: artY(793) },
+  { x: artX(1595), y: artY(793) },
+  { x: interiorDoorX, y: exitThresholdY },
   { x: artX(1902), y: exitThresholdY },
 ]
 export const streetRight = worldWidth - 24
-export const interiorDoorX = groundRoute[1].x
 export const sidewalkStart = groundRoute[groundRoute.length - 1].x
 export const entranceX = sidewalkStart
 export const interiorDoorBounds = new Phaser.Geom.Rectangle(
@@ -46,18 +49,24 @@ export function groundY(x: number) {
 }
 
 const rightWallStart = artX(1595)
+const aisleLevels = [793, 618, 430, 235].map(artY)
 // Keep feet on the floor in front of the angled wall on each upper floor.
 const rightFloorEdge = [781, 620, 432, 235].map(artY)
 
 export function walkingY(floor: number, x: number) {
   if (floor === 0) return groundY(x)
+  if (x < rightWallStart) {
+    const approach = Phaser.Math.Clamp((x - elevatorX) / (artX(350) - elevatorX), 0, 1)
+    return Phaser.Math.Linear(floorLevels[floor], aisleLevels[floor], approach)
+  }
   const progress = Phaser.Math.Clamp((x - rightWallStart) / (floorBounds.right - rightWallStart), 0, 1)
-  return Phaser.Math.Linear(floorLevels[floor], rightFloorEdge[floor], progress)
+  return Phaser.Math.Linear(aisleLevels[floor], rightFloorEdge[floor], progress)
 }
 
 export function loadBuilding(scene: Phaser.Scene) {
   scene.load.image(cityArt, new URL('./office-background.png', import.meta.url).href)
   scene.load.image(officeArt, new URL('./building/office.png', import.meta.url).href)
+  loadFurniture(scene)
 }
 
 export function addBuilding(scene: Phaser.Scene) {
@@ -66,6 +75,7 @@ export function addBuilding(scene: Phaser.Scene) {
 
   scene.add.image(buildingLeft, buildingTop, officeArt, '__BASE').setOrigin(0).setScale(artScale)
     .setName('Office building')
+  addFurniture(scene, buildingLeft, buildingTop, artScale)
 
   const texture = scene.textures.get(officeArt)
   if (!texture.has('exit-left')) {
