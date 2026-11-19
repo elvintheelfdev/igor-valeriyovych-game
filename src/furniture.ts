@@ -70,9 +70,46 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
   }
 
   const seatCoworker = (woman: boolean, x: number, y: number, mirrored: boolean) => {
-    const { person } = placeCoworker(woman ? typing : 'seated-man', x, y, 70, woman ? !mirrored : mirrored)
+    // Align the animated hips with the seat cushion and the hands with the keyboard.
+    const { person } = woman
+      ? placeCoworker(typing, x + (mirrored ? 8 : -8), y - 12, 64, !mirrored)
+      : placeCoworker('seated-man', x + (mirrored ? -4 : 4), y - 12, 66, mirrored)
     if (woman) {
       person.play({ key: typing, delay: Phaser.Math.Between(0, 900), repeatDelay: Phaser.Math.Between(400, 2400) })
+    }
+  }
+
+  const addMonitorContent = (workstation: Phaser.GameObjects.Image) => {
+    const graphics = scene.add.graphics()
+    const screens = [
+      { left: 130, top: 6, tilt: 14, lean: -8, accent: 0x79b7dc },
+      { left: 209, top: 20, tilt: -14, lean: 8, accent: 0x8cc8a8 },
+    ]
+
+    for (const screen of screens) {
+      const point = (u: number, v: number) => {
+        const x = screen.left + 29 * u + screen.lean * v - workstation.width / 2
+        const y = screen.top + screen.tilt * u + 44 * v - workstation.height
+        return new Phaser.Math.Vector2(
+          workstation.x + x * workstation.scaleX * (workstation.flipX ? -1 : 1),
+          workstation.y + y * workstation.scaleY,
+        )
+      }
+      const panel = (x: number, y: number, width: number, height: number, color: number) => {
+        graphics.fillStyle(color)
+        graphics.fillPoints([
+          point(x, y), point(x + width, y),
+          point(x + width, y + height), point(x, y + height),
+        ], true)
+      }
+
+      panel(0.06, 0.06, 0.88, 0.88, 0x263849)
+      panel(0.10, 0.10, 0.80, 0.12, screen.accent)
+      for (const [row, width] of [0.61, 0.43, 0.68, 0.50, 0.57].entries()) {
+        const y = 0.33 + row * 0.105
+        panel(0.13, y, 0.08, 0.035, screen.accent)
+        panel(0.26, y, width * 0.88, 0.035, 0xc4d6e1)
+      }
     }
   }
 
@@ -107,20 +144,57 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     } else {
       scene.add.ellipse(worldX, worldY - scale, width * 0.94, 7 * scale, 0x392c23, 0.16)
     }
-    scene.add.image(worldX, worldY, key).setOrigin(0.5, 1).setDisplaySize(width, height).setFlipX(flip)
+    const furniture = scene.add.image(worldX, worldY, key)
+      .setOrigin(0.5, 1).setDisplaySize(width, height).setFlipX(flip)
+    if (key === 'paired-workstations') addMonitorContent(furniture)
+    return furniture
+  }
+
+  const armrests = 'workstation-armrests'
+  if (!scene.textures.exists(armrests)) {
+    const artwork = scene.textures.get('paired-workstations').getSourceImage() as HTMLImageElement
+    const texture = scene.textures.createCanvas(armrests, artwork.width, artwork.height)
+    if (!texture) throw new Error('Could not create workstation armrest texture')
+    const context = texture.context
+    const nearArmrest = [[30, 95], [44, 90], [68, 92], [68, 100], [51, 103],
+      [47, 116], [43, 139], [30, 142], [36, 116], [39, 102]]
+
+    // Trace the front armrests from the workstation artwork so they can cover the seated sprites.
+    context.beginPath()
+    for (const mirrored of [false, true]) {
+      for (const [index, [x, y]] of nearArmrest.entries()) {
+        const sourceX = mirrored ? artwork.width - x : x
+        if (index === 0) context.moveTo(sourceX, y)
+        else context.lineTo(sourceX, y)
+      }
+      context.closePath()
+    }
+    context.clip()
+    context.drawImage(artwork, 0, 0)
+    texture.refresh()
   }
 
   for (const [floor, y] of [779, 605, 417].entries()) {
     const centers = floor === 0 ? [446, 668, 890, 1112] : [432, 648, 864, 1080, 1296, 1512]
     for (const [index, x] of centers.entries()) {
       const mirrored = (index + floor) % 2 === 1
-      place('paired-workstations', x, y, mirrored)
+      const workstation = place('paired-workstations', x, y, mirrored)
       if ((index + floor) % 4 !== 3) {
         seatCoworker(mirrored, x - 47, y - 2, mirrored)
       }
       if ((index + floor) % 3 !== 1) {
         seatCoworker(!mirrored, x + 47, y - 2, mirrored)
       }
+      scene.add.image(workstation.x, workstation.y, armrests)
+        .setOrigin(0.5, 1)
+        .setScale(workstation.scaleX, workstation.scaleY)
+        .setFlipX(mirrored)
+      // Draw the front of the desk over the legs while leaving the typing hands visible.
+      scene.add.image(workstation.x, workstation.y, workstation.texture.key)
+        .setOrigin(0.5, 1)
+        .setScale(workstation.scaleX, workstation.scaleY)
+        .setFlipX(mirrored)
+        .setCrop(96, 94, 175, workstation.height - 94)
     }
   }
   place('kitchenette', 1432, 779)
