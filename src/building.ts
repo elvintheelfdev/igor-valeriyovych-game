@@ -27,9 +27,11 @@ const groundRoute = [
   { x: artX(1595), y: artY(793) },
   { x: interiorDoorX, y: exitThresholdY },
   { x: artX(1902), y: exitThresholdY },
+  // Join the sidewalk at the base of the building.
+  { x: artX(1970), y: foundationY },
 ]
 export const streetRight = worldWidth - 24
-export const sidewalkStart = groundRoute[groundRoute.length - 1].x
+export const sidewalkStart = artX(1902)
 export const entranceX = sidewalkStart
 export const interiorDoorBounds = new Phaser.Geom.Rectangle(
   artX(1664), artY(646), 101 * artScale, 152 * artScale,

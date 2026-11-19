@@ -319,9 +319,9 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
 
   placeCoffeeDrinker(0, 1308, 788, 73)
   placeCoffeeDrinker(1, 1390, 791, 81, true)
-  // The smoking area is on the pavement just outside the entrance.
-  placeCoffeeDrinker(2, 2005, 804, 77)
-  placeCoffeeDrinker(3, 2115, 811, 80, true)
+  // Keep the coffee group at the back of the pavement, clear of Igor's silhouette.
+  placeCoffeeDrinker(2, 2005, 754, 77)
+  placeCoffeeDrinker(3, 2115, 759, 80, true)
 
   const { person: walker, shadow } = placeCoworker(walking, 1103, 226, 80)
   const startX = walker.x
