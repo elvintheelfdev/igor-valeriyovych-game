@@ -1,32 +1,32 @@
 import Phaser from 'phaser'
-import type { Destination } from './building'
+import { entranceX, type Destination } from './building'
 import { OfficeDialogue } from './dialogue'
 import { dialogueScenes } from './dialogue-scenes'
 
 const incidents = {
   junior: {
     title: 'Junior needs help', cue: '?', doing: 'Mentoring a junior', done: 'Junior ready to continue',
-    patience: 54, points: 100,
+    patience: 54,
   },
   interview: {
     title: 'Interview waiting', cue: 'I', doing: 'Conducting the interview', done: 'Interview complete',
-    patience: 65, points: 160,
+    patience: 65,
   },
   staffing: {
     title: 'Staffing request', cue: 'S', doing: 'Discussing project allocation', done: 'Project staffed',
-    patience: 59, points: 130,
+    patience: 59,
   },
   management: {
     title: 'Management meeting', cue: 'M', doing: 'Attending the management meeting', done: 'Meeting complete',
-    patience: 67, points: 175,
+    patience: 67,
   },
   training: {
     title: 'Lecture / Training', cue: 'T', doing: 'Leading a training session', done: 'Training complete',
-    patience: 61, points: 150,
+    patience: 61,
   },
   event: {
     title: 'Team event issue', cue: 'E', doing: 'Planning the team event', done: 'Team event rescheduled',
-    patience: 60, points: 140,
+    patience: 60,
   },
 } as const
 
@@ -56,14 +56,14 @@ type Incident = {
   startedAt: number
 }
 
-type Assignment = { incident: Incident } | { coffee: Phaser.GameObjects.Sprite }
+type Assignment = { incident: Incident } | { kitchenColleague: Phaser.GameObjects.Sprite }
 
-const bestKey = 'cosplay-ihor-best'
+const bestKey = 'cosplay-ihor-best-resolved'
 
 function readBest() {
   try {
     const best = Number(localStorage.getItem(bestKey))
-    return Number.isFinite(best) && best > 0 ? best : 0
+    return Number.isSafeInteger(best) && best > 0 ? best : 0
   } catch {
     return 0
   }
@@ -78,10 +78,9 @@ export class OfficeIncidents {
   private readonly layer = document.createElement('div')
   private readonly status: HTMLElement
   private readonly scoreLabel: HTMLElement
-  private readonly totals: HTMLElement
   private readonly stressMeter: HTMLProgressElement
   private readonly stressLabel: HTMLElement
-  private readonly coffeeCount: HTMLElement
+  private readonly coffeeButton: HTMLButtonElement
   private readonly list: HTMLElement
   private readonly roleCount: Record<Role, number> = { junior: 0, interview: 0, staffing: 0, management: 0, training: 0, event: 0 }
   private assignment?: Assignment
@@ -89,8 +88,8 @@ export class OfficeIncidents {
   private nextIncident = 2
   private score = 0
   private best = readBest()
-  private resolved = 0
   private coffee = 0
+  private outside = false
   private stress = 0
   private ended = false
 
@@ -111,25 +110,25 @@ export class OfficeIncidents {
     this.hud.innerHTML = `
       <div class="hud-totals">
         <div><strong data-score>0</strong><small>Score</small></div>
-        <div><strong data-totals>0 / 1</strong><small>Helped / Level</small></div>
         <div class="hud-stress"><strong data-stress>0%</strong><small>Stress</small>
           <progress max="100" value="0" aria-label="Stress"></progress></div>
       </div>
       <div class="hud-message" role="status">Click an incident to send Ihor. Click the floor to walk.</div>
       <div class="hud-incidents" aria-label="Active incidents"></div>
-      <p class="coffee-count">Coffee breaks · 0</p>
+      <button class="coffee-break" type="button" disabled>Coffee breaks · 0</button>
     `
     this.status = this.hud.querySelector('.hud-message')!
     this.scoreLabel = this.hud.querySelector('[data-score]')!
-    this.totals = this.hud.querySelector('[data-totals]')!
     this.stressLabel = this.hud.querySelector('[data-stress]')!
     this.stressMeter = this.hud.querySelector('progress')!
-    this.coffeeCount = this.hud.querySelector('.coffee-count')!
+    this.coffeeButton = this.hud.querySelector('.coffee-break')!
+    this.coffeeButton.addEventListener('click', () => this.takeCoffeeBreak())
     this.list = this.hud.querySelector('.hud-incidents')!
 
     this.layer.className = 'incident-layer'
     host.append(this.layer, this.hud)
     this.dialogue = new OfficeDialogue(host, ihor)
+    this.render()
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.dialogue.destroy()
       this.hud.remove()
@@ -140,13 +139,23 @@ export class OfficeIncidents {
   get gameOver() { return this.ended }
   get inDialogue() { return this.dialogue.active }
 
-  requestCoffee(person: Phaser.GameObjects.Sprite) {
+  visitKitchenColleague(person: Phaser.GameObjects.Sprite) {
     if (this.ended || this.inDialogue) return
-    if (this.assignment && 'coffee' in this.assignment && this.assignment.coffee === person) return
+    if (this.assignment && 'kitchenColleague' in this.assignment && this.assignment.kitchenColleague === person) return
     this.cancel()
-    this.assignment = { coffee: person }
+    this.assignment = { kitchenColleague: person }
     this.goTo({ x: person.x, floor: 0 })
     this.status.textContent = 'Heading to the kitchen'
+  }
+
+  private takeCoffeeBreak() {
+    if (this.ended || this.inDialogue || !this.outside || this.coffee === 0) return
+    this.cancel()
+    this.goTo()
+    this.coffee--
+    this.stress = Math.max(0, this.stress - 35)
+    this.status.textContent = 'Coffee break complete'
+    this.render()
   }
 
   cancel() {
@@ -162,6 +171,7 @@ export class OfficeIncidents {
 
   update(delta: number, player: Destination, canInteract: boolean) {
     if (this.ended || this.inDialogue) return
+    this.outside = canInteract && player.floor === 0 && player.x >= entranceX
     const seconds = delta / 1000
     this.elapsed += seconds
 
@@ -179,13 +189,11 @@ export class OfficeIncidents {
     }
 
     if (canInteract) this.updateAssignment(player)
-    if (!this.inDialogue && this.elapsed >= this.nextIncident && this.active.length < Math.min(4, 1 + this.level)) {
-      if (this.spawn(player.floor)) this.nextIncident = this.elapsed + Math.max(5, 13 - this.level)
+    if (!this.inDialogue && this.elapsed >= this.nextIncident && this.active.length < 3) {
+      if (this.spawn(player.floor)) this.nextIncident = this.elapsed + Math.max(5, 12 - this.elapsed / 65)
     }
     this.render()
   }
-
-  private get level() { return 1 + Math.floor(Math.max(this.elapsed / 65, this.resolved / 6)) }
 
   private select(incident: Incident) {
     if (this.ended || this.inDialogue || this.isSelected(incident) || !this.active.includes(incident)) return
@@ -220,7 +228,7 @@ export class OfficeIncidents {
     entry.className = 'incident-entry'
     const incident = {
       npc, marker, entry, startedAt: this.elapsed,
-      remaining: Math.max(39, incidents[npc.role].patience - 2.5 * (this.level - 1)),
+      remaining: Math.max(39, incidents[npc.role].patience - this.elapsed / 26),
     }
     marker.addEventListener('click', () => this.select(incident))
     entry.addEventListener('click', () => this.select(incident))
@@ -270,19 +278,13 @@ export class OfficeIncidents {
   private updateAssignment(player: Destination) {
     const assignment = this.assignment
     if (!assignment) return
-    if ('coffee' in assignment) {
-      const person = assignment.coffee
+    if ('kitchenColleague' in assignment) {
+      const person = assignment.kitchenColleague
       if (player.floor !== 0 || Math.abs(player.x - person.x) > 0.5) return
       this.status.textContent = 'At the coffee station'
       this.startDialogue('coffee', person, () => {
         this.assignment = undefined
-        if (this.coffee > 0) {
-          this.coffee--
-          this.stress = Math.max(0, this.stress - 35)
-          this.status.textContent = 'Coffee break complete · Stress reduced'
-        } else {
-          this.status.textContent = 'Help colleagues to earn a coffee break'
-        }
+        this.status.textContent = 'Choose an incident to help a colleague'
       })
       return
     }
@@ -311,13 +313,12 @@ export class OfficeIncidents {
     const { npc } = incident
     const task = incidents[npc.role]
     this.assignment = undefined
-    this.score += task.points + Math.ceil(incident.remaining)
+    this.score++
     if (this.score > this.best) {
       this.best = this.score
       try { localStorage.setItem(bestKey, String(this.best)) } catch { /* Storage is optional. */ }
     }
-    this.resolved++
-    if (this.resolved % 3 === 0) this.coffee++
+    if (this.score % 3 === 0) this.coffee++
     this.stress = Math.max(0, this.stress - 4)
     this.status.textContent = task.done
     this.remove(incident)
@@ -394,10 +395,12 @@ export class OfficeIncidents {
   private render() {
     for (const [npc, check] of this.feedback) this.position(check, npc, 0)
     this.scoreLabel.textContent = this.score.toLocaleString()
-    this.totals.textContent = this.resolved + ' / ' + this.level
     this.stressMeter.value = this.stress
     this.stressLabel.textContent = this.stress + '%'
-    this.coffeeCount.textContent = 'Coffee breaks · ' + this.coffee
+    this.coffeeButton.disabled = this.ended || !this.outside || this.coffee === 0
+    this.coffeeButton.textContent = this.outside && this.coffee > 0
+      ? 'Take coffee break · ' + this.coffee
+      : 'Coffee breaks · ' + this.coffee + (this.outside ? '' : ' (outside only)')
     for (const incident of this.active) {
       const { npc, marker, entry } = incident
       const task = incidents[npc.role]

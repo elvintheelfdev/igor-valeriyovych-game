@@ -219,7 +219,7 @@ class Office extends Phaser.Scene {
       if (pointer.event.target instanceof HTMLElement && pointer.event.target.closest('button')) return
       const colleague = doors.kitchenColleagues.find(person => targets.includes(person))
       if (colleague) {
-        gameplay.requestCoffee(colleague)
+        gameplay.visitKitchenColleague(colleague)
         return
       }
       const point = camera.getWorldPoint(pointer.x, pointer.y)
