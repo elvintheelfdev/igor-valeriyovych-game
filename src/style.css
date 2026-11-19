@@ -97,7 +97,13 @@ canvas { display: block; }
   cursor: default;
 }
 
-.coffee-break { margin-top: 0.5rem; }
+.hud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
 
 .incident-marker {
   position: absolute;

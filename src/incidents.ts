@@ -117,7 +117,10 @@ export class OfficeIncidents {
       </div>
       <div class="hud-message" role="status">Click an incident to send Ihor. Click the floor to walk.</div>
       <div class="hud-incidents" aria-label="Active incidents"></div>
-      <button class="coffee-break" type="button" disabled>Coffee breaks · 0</button>
+      <div class="hud-actions">
+        <button class="coffee-break" type="button" disabled>Coffee breaks · 0</button>
+        <button class="end-game" type="button">End game</button>
+      </div>
     `
     this.status = this.hud.querySelector('.hud-message')!
     this.scoreLabel = this.hud.querySelector('[data-score]')!
@@ -125,6 +128,7 @@ export class OfficeIncidents {
     this.fatigueMeter = this.hud.querySelector('progress')!
     this.coffeeButton = this.hud.querySelector('.coffee-break')!
     this.coffeeButton.addEventListener('click', () => this.takeCoffeeBreak())
+    this.hud.querySelector('.end-game')!.addEventListener('click', () => this.endRun())
     this.list = this.hud.querySelector('.hud-incidents')!
 
     this.layer.className = 'incident-layer'
@@ -381,6 +385,7 @@ export class OfficeIncidents {
   }
 
   private endRun() {
+    if (this.ended) return
     this.ended = true
     this.assignment = undefined
     this.goTo()
