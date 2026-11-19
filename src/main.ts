@@ -2,8 +2,8 @@ import Phaser from 'phaser'
 import './style.css'
 import {
   addBuilding, elevatorX, entranceBounds, entranceX, floorBounds, floorLevels,
-  groundY, interiorDoorBounds, interiorDoorX, loadBuilding, sidewalkBounds, sidewalkStart,
-  streetRight, worldHeight, worldWidth,
+  interiorDoorBounds, interiorDoorX, loadBuilding, sidewalkBounds, sidewalkStart,
+  streetRight, walkingY, worldHeight, worldWidth,
 } from './building'
 
 const igorArt = 'igor'
@@ -147,7 +147,7 @@ class Office extends Phaser.Scene {
           igor.setVisible(passageTarget === undefined)
           shadow.setVisible(igor.visible)
         }
-        if (floor === 0) igor.y = groundY(igor.x)
+        igor.y = walkingY(floor, igor.x)
         shadow.setPosition(igor.x, igor.y)
         igor.setFlipX(distance < 0)
         strideDistance = (strideDistance + travel) % strideLength
@@ -191,7 +191,10 @@ class Office extends Phaser.Scene {
         return
       }
       if (point.x < floorBounds.left || point.x > floorBounds.right) return
-      const targetFloor = floorLevels.findIndex(y => point.y >= y - 116 && point.y <= y + 12)
+      const targetFloor = floorLevels.findIndex((_, index) => {
+        const y = walkingY(index, point.x)
+        return point.y >= y - 116 && point.y <= y + 12
+      })
       if (targetFloor >= 0) {
         destination = { x: targetFloor === 0 ? Math.min(point.x, interiorDoorX - 1) : point.x, floor: targetFloor }
       }

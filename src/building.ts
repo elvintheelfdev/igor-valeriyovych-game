@@ -48,6 +48,16 @@ export function groundY(x: number) {
   return groundRoute[groundRoute.length - 1].y
 }
 
+const rightWallStart = artX(1648)
+// Keep feet on the floor in front of the angled wall on each upper floor.
+const rightFloorEdge = [765, 609, 429, 246].map(artY)
+
+export function walkingY(floor: number, x: number) {
+  if (floor === 0) return groundY(x)
+  const progress = Phaser.Math.Clamp((x - rightWallStart) / (floorBounds.right - rightWallStart), 0, 1)
+  return Phaser.Math.Linear(floorLevels[floor], rightFloorEdge[floor], progress)
+}
+
 export function loadBuilding(scene: Phaser.Scene) {
   scene.load.image(cityArt, new URL('./office-background.png', import.meta.url).href)
   scene.load.image(officeArt, new URL('./building/office.png', import.meta.url).href)
