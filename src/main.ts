@@ -209,7 +209,7 @@ class Office extends Phaser.Scene {
     })
     this.input.on('pointerdown', () => host.focus({ preventScroll: true }))
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (gameplay.inDialogue || overview || !pointer.isDown || pointer.getDistance() < dragThreshold) return
+      if (gameplay.gameOver || gameplay.inDialogue || overview || !pointer.isDown || pointer.getDistance() < dragThreshold) return
       followPending = false
       camera.scrollX -= (pointer.x - pointer.prevPosition.x) / camera.zoom
       camera.scrollY -= (pointer.y - pointer.prevPosition.y) / camera.zoom
@@ -231,7 +231,8 @@ class Office extends Phaser.Scene {
       if (target) walkTo(target)
     })
     host.addEventListener('wheel', (event) => {
-      if (gameplay.inDialogue || (event.target instanceof HTMLElement && event.target.closest('.office-hud'))) return
+      if (gameplay.gameOver || gameplay.inDialogue ||
+        (event.target instanceof HTMLElement && event.target.closest('.office-hud'))) return
       event.preventDefault()
       if (overview) return
       followPending = false
@@ -240,7 +241,7 @@ class Office extends Phaser.Scene {
       if (!event.shiftKey) camera.scrollY += event.deltaY * multiplier / camera.zoom
     }, { passive: false, signal })
     window.addEventListener('keydown', (event) => {
-      if (gameplay.inDialogue || event.target instanceof HTMLButtonElement) return
+      if (gameplay.gameOver || gameplay.inDialogue || event.target instanceof HTMLButtonElement) return
       if (event.code === 'Space') {
         event.preventDefault()
         if (event.repeat) return
@@ -254,7 +255,7 @@ class Office extends Phaser.Scene {
       }
       if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
       event.preventDefault()
-      if (event.repeat || gameplay.gameOver || elevatorFloor !== undefined) return
+      if (event.repeat || elevatorFloor !== undefined) return
       const targetFloor = floor + (event.key === 'ArrowUp' ? 1 : -1)
       if (targetFloor >= 0 && targetFloor < floorLevels.length) {
         walkTo({ x: elevatorX, floor: targetFloor })

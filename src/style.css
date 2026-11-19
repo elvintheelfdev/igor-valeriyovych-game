@@ -57,7 +57,7 @@ canvas { display: block; }
 .hud-totals small { display: block; }
 .hud-totals strong { font-size: 1rem; }
 .hud-totals small { color: #d9bc98; }
-.hud-stress progress {
+.hud-fatigue progress {
   display: block;
   width: 100%;
   height: 0.35rem;
@@ -137,8 +137,6 @@ canvas { display: block; }
   outline: 2px solid #fff2dd;
   outline-offset: 2px;
 }
-
-.hud-record { margin: 0; }
 
 @media (max-width: 500px) {
   .office-hud {
@@ -358,4 +356,78 @@ canvas { display: block; }
 
   .dialogue-speaker { left: 0.35rem; }
   .office-dialogue[data-speaker="npc"] .dialogue-speaker { right: 0.35rem; }
+}
+
+.game-over {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  box-sizing: border-box;
+  margin: 0;
+  padding: clamp(0.5rem, 1.8vw, 1.1rem);
+  border: 0;
+  overflow: auto;
+  background: radial-gradient(ellipse at center, #472a26, #1c1316 75%);
+  color: #fff1d7;
+  font: 500 0.85rem/1.35 system-ui, sans-serif;
+}
+
+.game-over[open] {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  place-items: center;
+  gap: 0.75rem;
+}
+
+.game-over::backdrop { background: #1c1316; }
+
+.game-over-art {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  object-fit: contain;
+}
+
+.game-over-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem clamp(0.9rem, 4vw, 2.3rem);
+  padding: 0.15rem 0 0.25rem;
+  text-align: center;
+}
+
+.game-over-summary strong,
+.game-over-summary small { display: block; }
+.game-over-summary strong { font-size: 1.25rem; }
+.game-over-summary small { color: #e2bd98; }
+
+.game-over-summary button {
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #e79c62;
+  border-radius: 7px;
+  background: #643628;
+  color: inherit;
+  font: 700 0.85rem/1.35 system-ui, sans-serif;
+  cursor: pointer;
+}
+
+.game-over-summary button:hover { background: #814635; }
+.game-over-summary button:focus-visible {
+  outline: 2px solid #ffdaaa;
+  outline-offset: 3px;
+}
+
+@media (orientation: portrait) and (max-width: 600px) {
+  .game-over[open] {
+    align-content: center;
+    grid-template-rows: auto auto;
+  }
+
+  .game-over-art { height: auto; }
 }

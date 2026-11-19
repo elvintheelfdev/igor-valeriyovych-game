@@ -59,6 +59,7 @@ type Incident = {
 type Assignment = { incident: Incident } | { kitchenColleague: Phaser.GameObjects.Sprite }
 
 const bestKey = 'cosplay-ihor-best-resolved'
+const gameOverArt = new URL('./game-over.png', import.meta.url).href
 
 function readBest() {
   try {
@@ -75,11 +76,12 @@ export class OfficeIncidents {
   private readonly active: Incident[] = []
   private readonly feedback = new Map<Colleague, HTMLElement>()
   private readonly hud = document.createElement('section')
+  private readonly endScreen = document.createElement('dialog')
   private readonly layer = document.createElement('div')
   private readonly status: HTMLElement
   private readonly scoreLabel: HTMLElement
-  private readonly stressMeter: HTMLProgressElement
-  private readonly stressLabel: HTMLElement
+  private readonly fatigueMeter: HTMLProgressElement
+  private readonly fatigueLabel: HTMLElement
   private readonly coffeeButton: HTMLButtonElement
   private readonly list: HTMLElement
   private readonly roleCount: Record<Role, number> = { junior: 0, interview: 0, staffing: 0, management: 0, training: 0, event: 0 }
@@ -90,7 +92,7 @@ export class OfficeIncidents {
   private best = readBest()
   private coffee = 0
   private outside = false
-  private stress = 0
+  private fatigue = 0
   private ended = false
 
   constructor(
@@ -110,8 +112,8 @@ export class OfficeIncidents {
     this.hud.innerHTML = `
       <div class="hud-totals">
         <div><strong data-score>0</strong><small>Score</small></div>
-        <div class="hud-stress"><strong data-stress>0%</strong><small>Stress</small>
-          <progress max="100" value="0" aria-label="Stress"></progress></div>
+        <div class="hud-fatigue"><strong data-fatigue>0%</strong><small>Fatigue</small>
+          <progress max="100" value="0" aria-label="Fatigue"></progress></div>
       </div>
       <div class="hud-message" role="status">Click an incident to send Ihor. Click the floor to walk.</div>
       <div class="hud-incidents" aria-label="Active incidents"></div>
@@ -119,18 +121,38 @@ export class OfficeIncidents {
     `
     this.status = this.hud.querySelector('.hud-message')!
     this.scoreLabel = this.hud.querySelector('[data-score]')!
-    this.stressLabel = this.hud.querySelector('[data-stress]')!
-    this.stressMeter = this.hud.querySelector('progress')!
+    this.fatigueLabel = this.hud.querySelector('[data-fatigue]')!
+    this.fatigueMeter = this.hud.querySelector('progress')!
     this.coffeeButton = this.hud.querySelector('.coffee-break')!
     this.coffeeButton.addEventListener('click', () => this.takeCoffeeBreak())
     this.list = this.hud.querySelector('.hud-incidents')!
 
     this.layer.className = 'incident-layer'
-    host.append(this.layer, this.hud)
+    this.endScreen.className = 'game-over'
+    this.endScreen.setAttribute('aria-label', 'Game over')
+    this.endScreen.innerHTML = `
+      <img class="game-over-art" alt="After a whole day of solving problems, Igor relaxes at home with GTA VI.">
+      <div class="game-over-summary">
+        <div><strong data-final-score>0</strong><small>Problems solved</small></div>
+        <div><strong data-final-best>0</strong><small>Personal best</small></div>
+        <button type="button">Start a new shift</button>
+      </div>
+    `
+    this.endScreen.querySelector('img')!.src = gameOverArt
+    const restart = this.endScreen.querySelector('button')!
+    restart.addEventListener('click', () => scene.scene.restart(), { once: true })
+    this.endScreen.addEventListener('cancel', event => event.preventDefault())
+    this.endScreen.addEventListener('keydown', event => {
+      if (event.code !== 'Space') return
+      event.preventDefault()
+      if (!event.repeat) restart.click()
+    })
+    host.append(this.layer, this.hud, this.endScreen)
     this.dialogue = new OfficeDialogue(host, ihor)
     this.render()
     scene.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.dialogue.destroy()
+      this.endScreen.remove()
       this.hud.remove()
       this.layer.remove()
     })
@@ -153,7 +175,7 @@ export class OfficeIncidents {
     this.cancel()
     this.goTo()
     this.coffee--
-    this.stress = Math.max(0, this.stress - 35)
+    this.fatigue = Math.max(0, this.fatigue - 35)
     this.status.textContent = 'Coffee break complete'
     this.render()
   }
@@ -319,7 +341,7 @@ export class OfficeIncidents {
       try { localStorage.setItem(bestKey, String(this.best)) } catch { /* Storage is optional. */ }
     }
     if (this.score % 3 === 0) this.coffee++
-    this.stress = Math.max(0, this.stress - 4)
+    this.fatigue = Math.max(0, this.fatigue - 4)
     this.status.textContent = task.done
     this.remove(incident)
     this.setState(npc, 'resolved')
@@ -340,9 +362,9 @@ export class OfficeIncidents {
     }
     this.remove(incident)
     this.cooldown(incident.npc)
-    this.stress = Math.min(100, this.stress + 24)
+    this.fatigue = Math.min(100, this.fatigue + 24)
     if (selected || !this.assignment) this.status.textContent = 'Missed · ' + incidents[incident.npc.role].title
-    if (this.stress >= 100) this.endRun()
+    if (this.fatigue >= 100) this.endRun()
   }
 
   private cooldown(npc: Colleague) {
@@ -369,17 +391,10 @@ export class OfficeIncidents {
     for (const check of this.feedback.values()) check.remove()
     this.feedback.clear()
     this.render()
-    this.status.textContent = 'Shift over · Stress reached 100%'
-    const restart = document.createElement('button')
-    restart.type = 'button'
-    restart.className = 'restart-button'
-    restart.textContent = 'Start a new shift'
-    restart.addEventListener('click', () => this.scene.scene.restart(), { once: true })
-    const record = document.createElement('p')
-    record.className = 'hud-record'
-    record.textContent = 'Personal best · ' + this.best.toLocaleString()
-    this.list.append(record, restart)
-    restart.focus()
+    this.endScreen.querySelector('[data-final-score]')!.textContent = this.score.toLocaleString()
+    this.endScreen.querySelector('[data-final-best]')!.textContent = this.best.toLocaleString()
+    this.endScreen.showModal()
+    this.endScreen.querySelector('button')!.focus()
   }
 
   private position(element: HTMLElement, npc: Colleague, lift: number) {
@@ -395,8 +410,8 @@ export class OfficeIncidents {
   private render() {
     for (const [npc, check] of this.feedback) this.position(check, npc, 0)
     this.scoreLabel.textContent = this.score.toLocaleString()
-    this.stressMeter.value = this.stress
-    this.stressLabel.textContent = this.stress + '%'
+    this.fatigueMeter.value = this.fatigue
+    this.fatigueLabel.textContent = this.fatigue + '%'
     this.coffeeButton.disabled = this.ended || !this.outside || this.coffee === 0
     this.coffeeButton.textContent = this.outside && this.coffee > 0
       ? 'Take coffee break · ' + this.coffee
