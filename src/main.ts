@@ -1,6 +1,10 @@
 import Phaser from 'phaser'
 import './style.css'
-import { addBuilding, elevatorX, floorBounds, floorLevels, loadBuilding, worldHeight, worldWidth } from './building'
+import {
+  addBuilding, elevatorX, entranceBounds, entranceX, floorBounds, floorLevels,
+  groundY, interiorDoorBounds, interiorDoorX, loadBuilding, sidewalkBounds, sidewalkStart,
+  streetRight, worldHeight, worldWidth,
+} from './building'
 
 const igorArt = 'igor'
 const frameWidth = 192
@@ -11,6 +15,7 @@ const strideLength = 58
 const cameraViewHeight = 325
 const walkSpeed = 68
 const elevatorSpeed = 220
+const doorSpeed = 4
 const dragThreshold = 8
 
 class Office extends Phaser.Scene {
@@ -23,7 +28,7 @@ class Office extends Phaser.Scene {
   }
 
   create() {
-    addBuilding(this)
+    const doors = addBuilding(this)
 
     const igorX = 690
     const igorFloorY = floorLevels[0]
@@ -52,6 +57,10 @@ class Office extends Phaser.Scene {
     let elevatorFloor: number | undefined
     let destination: { x: number; floor: number } | undefined
     let strideDistance = 0
+    let interiorDoorProgress = 0
+    let streetDoorProgress = 0
+    let passageTarget: number | undefined
+    const insideLanding = interiorDoorX - 42
     const showIdle = () => {
       strideDistance = 0
       if (Number(igor.frame.name) !== idleFrame) igor.setFrame(idleFrame)
@@ -60,6 +69,14 @@ class Office extends Phaser.Scene {
     const moveIgor = (_time: number, delta: number) => {
       const direction = Number(right.isDown || d.isDown) - Number(left.isDown || a.isDown)
       const seconds = Math.min(delta, 50) / 1000
+      const updateDoor = (progress: number, x: number, draw: (progress: number) => void) => {
+        const nearby = floor === 0 && elevatorFloor === undefined && Math.abs(igor.x - x) < 39
+        const next = Phaser.Math.Clamp(progress + (nearby ? 1 : -1) * doorSpeed * seconds, 0, 1)
+        if (next !== progress) draw(Phaser.Math.Easing.Sine.InOut(next))
+        return next
+      }
+      interiorDoorProgress = updateDoor(interiorDoorProgress, interiorDoorX, doors.interior)
+      streetDoorProgress = updateDoor(streetDoorProgress, entranceX, doors.street)
       if (elevatorFloor === undefined) {
         if (direction !== 0) destination = undefined
         if (destination && destination.floor !== floor && igor.x === elevatorX) {
@@ -83,8 +100,9 @@ class Office extends Phaser.Scene {
           shadow.setVisible(true)
         }
       } else {
-        const targetX = direction !== 0 ? (direction > 0 ? floorBounds.right : floorBounds.left)
-          : destination && (destination.floor === floor ? destination.x : elevatorX)
+        const rightBound = floor === 0 ? streetRight : floorBounds.right
+        const targetX = passageTarget ?? (direction !== 0 ? (direction > 0 ? rightBound : floorBounds.left)
+          : destination && (destination.floor === floor ? destination.x : elevatorX))
         if (targetX === undefined || targetX === igor.x) {
           if (destination?.floor === floor) destination = undefined
           showIdle()
@@ -94,8 +112,23 @@ class Office extends Phaser.Scene {
         const step = walkSpeed * seconds
         const travel = Math.min(Math.abs(distance), step)
         if (travel === 0) return
-        igor.x = travel === Math.abs(distance) ? targetX : igor.x + Math.sign(distance) * travel
-        shadow.x = igor.x
+        const previousX = igor.x
+        igor.x = travel === Math.abs(distance) ? targetX : previousX + Math.sign(distance) * travel
+        if (floor === 0) {
+          if (passageTarget === undefined) {
+            if (previousX <= interiorDoorX && igor.x > interiorDoorX) passageTarget = entranceX
+            if (previousX >= entranceX && igor.x < entranceX) passageTarget = interiorDoorX
+          } else if (igor.x === passageTarget) {
+            passageTarget = undefined
+            if (!destination && direction === 0) {
+              destination = { x: igor.x === entranceX ? sidewalkStart : insideLanding, floor: 0 }
+            }
+          }
+          igor.setVisible(passageTarget === undefined)
+          shadow.setVisible(igor.visible)
+        }
+        if (floor === 0) igor.y = groundY(igor.x)
+        shadow.setPosition(igor.x, igor.y)
         igor.setFlipX(distance < 0)
         strideDistance = (strideDistance + travel) % strideLength
         const frame = 1 + Math.floor(strideDistance / strideLength * walkFrameCount)
@@ -129,9 +162,19 @@ class Office extends Phaser.Scene {
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
       if (pointer.button !== 0 || pointer.getDistance() >= dragThreshold || elevatorFloor !== undefined) return
       const point = camera.getWorldPoint(pointer.x, pointer.y)
+      if (interiorDoorBounds.contains(point.x, point.y) || entranceBounds.contains(point.x, point.y)) {
+        destination = { x: floor === 0 && igor.x >= entranceX ? insideLanding : sidewalkStart, floor: 0 }
+        return
+      }
+      if (sidewalkBounds.contains(point.x, point.y)) {
+        destination = { x: Math.max(sidewalkStart, point.x), floor: 0 }
+        return
+      }
       if (point.x < floorBounds.left || point.x > floorBounds.right) return
       const targetFloor = floorLevels.findIndex(y => point.y >= y - 116 && point.y <= y + 12)
-      if (targetFloor >= 0) destination = { x: point.x, floor: targetFloor }
+      if (targetFloor >= 0) {
+        destination = { x: targetFloor === 0 ? Math.min(point.x, interiorDoorX - 1) : point.x, floor: targetFloor }
+      }
     })
     host.addEventListener('wheel', (event) => {
       event.preventDefault()
