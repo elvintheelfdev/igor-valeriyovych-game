@@ -65,6 +65,21 @@ export function walkingY(floor: number, x: number) {
   return Phaser.Math.Linear(aisleLevels[floor], rightFloorEdge[floor], progress)
 }
 
+export type Destination = { x: number; floor: number }
+
+export const coffeeStop = { x: artX(2058), floor: 0 }
+
+export function walkableDestination(x: number, y: number): Destination | undefined {
+  if (sidewalkBounds.contains(x, y)) return { x, floor: 0 }
+  if (x < floorBounds.left || x > floorBounds.right) return
+  const floor = floorLevels.findIndex((_, index) => {
+    const aisle = walkingY(index, x)
+    return y >= aisle - 15 && y <= aisle + 15
+  })
+  if (floor < 0) return
+  return { x: floor === 0 ? Math.min(x, interiorDoorX - 1) : x, floor }
+}
+
 export function loadBuilding(scene: Phaser.Scene) {
   scene.load.image(cityArt, new URL('./office-background.png', import.meta.url).href)
   scene.load.image(officeArt, new URL('./building/office.png', import.meta.url).href)
@@ -77,7 +92,7 @@ export function addBuilding(scene: Phaser.Scene) {
 
   scene.add.image(buildingLeft, buildingTop, officeArt, '__BASE').setOrigin(0).setScale(artScale)
     .setName('Office building')
-  addFurniture(scene, buildingLeft, buildingTop, artScale)
+  const coworkers = addFurniture(scene, buildingLeft, buildingTop, artScale)
 
   const texture = scene.textures.get(officeArt)
   if (!texture.has('exit-left')) {
@@ -137,5 +152,5 @@ export function addBuilding(scene: Phaser.Scene) {
   lifts.forEach(draw => draw(0))
   interior(0)
 
-  return { interior, lifts }
+  return { interior, lifts, coworkers }
 }

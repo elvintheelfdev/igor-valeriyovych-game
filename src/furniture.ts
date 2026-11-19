@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import type { OfficeNPC } from './incidents'
 
 const props = {
   'paired-workstations': {
@@ -23,8 +24,10 @@ const props = {
   },
 }
 
-const coworkers = {
+const coworkerArt = {
   'seated-man': new URL('./people/seated-man.png', import.meta.url).href,
+  'standing-man': new URL('./people/standing-man.png', import.meta.url).href,
+  'standing-woman': new URL('./people/standing-woman.png', import.meta.url).href,
 }
 
 const typing = 'coworker-typing'
@@ -82,7 +85,7 @@ export function loadFurniture(scene: Phaser.Scene) {
   scene.load.image(seatedCrew, new URL('./people/seated-crew.png', import.meta.url).href)
   scene.load.image(coffeeCrew, new URL('./people/coffee-crew.png', import.meta.url).href)
   for (const [key, prop] of Object.entries(props)) scene.load.image(key, prop.url)
-  for (const [key, url] of Object.entries(coworkers)) scene.load.image(key, url)
+  for (const [key, url] of Object.entries(coworkerArt)) scene.load.image(key, url)
   scene.load.spritesheet(typing, new URL('./people/coworker-typing.png', import.meta.url).href, {
     frameWidth: 543, frameHeight: typingFrameHeight,
   })
@@ -92,6 +95,7 @@ export function loadFurniture(scene: Phaser.Scene) {
 }
 
 export function addFurniture(scene: Phaser.Scene, left: number, top: number, scale: number) {
+  const coworkers: OfficeNPC[] = []
   if (!scene.anims.exists(typing)) {
     scene.anims.create({
       key: typing,
@@ -101,7 +105,7 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     })
   }
 
-  const placeCoworker = (key: keyof typeof coworkers | typeof typing | typeof walking,
+  const placeCoworker = (key: keyof typeof coworkerArt | typeof typing | typeof walking,
     x: number, y: number, height: number, flip = false) => {
     const worldX = left + x * scale
     const worldY = top + y * scale
@@ -128,8 +132,8 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
   }
   let seatedIndex = 0
 
-  const animateSeated = (person: Phaser.GameObjects.Sprite, index: number) => {
-    scene.tweens.add({
+  const animateIdle = (person: Phaser.GameObjects.Sprite, index: number) => {
+    return scene.tweens.add({
       targets: person,
       angle: { from: person.angle, to: person.flipX ? -1.7 : 1.7 },
       duration: 240 + index % 4 * 75,
@@ -141,7 +145,8 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     })
   }
 
-  const seatCoworker = (woman: boolean, x: number, y: number, mirrored: boolean) => {
+  const seatCoworker = (woman: boolean, x: number, y: number, mirrored: boolean, floor: number) => {
+    const role = (floor === 1 || floor === 2) && x === 432 - 47 ? 'staffing' : 'junior'
     const index = seatedIndex++
     if (index >= 2) {
       const flip = woman ? !mirrored : mirrored
@@ -150,14 +155,15 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
         seatedCrew, String(index - 2))
       person.setOrigin(0.5, 0.80).setFlipX(flip)
         .setScale((53 + index % 5) * scale / person.height)
-      animateSeated(person, index)
+      coworkers.push({ person, floor, role, routine: animateIdle(person, index) })
       return
     }
     // Align the animated hips with the seat cushion and the hands with the keyboard.
     const { person } = woman
       ? placeCoworker(typing, x + (mirrored ? 8 : -8), y - 12, 64, !mirrored)
       : placeCoworker('seated-man', x + (mirrored ? -4 : 4), y - 12, 66, mirrored)
-    if (!woman) animateSeated(person, index)
+    const routine = woman ? undefined : animateIdle(person, index)
+    coworkers.push({ person, floor, role, routine })
     if (woman) {
       person.play({ key: typing, delay: Phaser.Math.Between(0, 900), repeatDelay: Phaser.Math.Between(400, 2400) })
     }
@@ -264,10 +270,10 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
       const mirrored = (index + floor) % 2 === 1
       const workstation = place('paired-workstations', x, y, mirrored)
       if ((index + floor) % 4 !== 3) {
-        seatCoworker(mirrored, x - 47, y - 2, mirrored)
+        seatCoworker(mirrored, x - 47, y - 2, mirrored, floor)
       }
       if ((index + floor) % 3 !== 1) {
-        seatCoworker(!mirrored, x + 47, y - 2, mirrored)
+        seatCoworker(!mirrored, x + 47, y - 2, mirrored, floor)
       }
       scene.add.image(workstation.x, workstation.y, armrests)
         .setOrigin(0.5, 1)
@@ -290,6 +296,12 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
   place('meeting-table', 1007, topFloor + 10)
   place('executive-desk', 1415, topFloor)
   place('sideboard', 1539, topFloor, true)
+  const candidate = placeCoworker('standing-woman', 873, 213, 73).person
+  const manager = placeCoworker('standing-man', 1075, 213, 78, true).person
+  coworkers.push(
+    { person: candidate, floor: 3, role: 'interview', routine: animateIdle(candidate, 24) },
+    { person: manager, floor: 3, role: 'management', routine: animateIdle(manager, 25) },
+  )
   const placeCoffeeDrinker = (index: number, x: number, y: number, height: number, flip = false) => {
     const first = index * 3
     const rest = String(first)
@@ -349,4 +361,6 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
       shadow.x = walker.x
     },
   })
+
+  return coworkers
 }
