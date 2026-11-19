@@ -92,22 +92,11 @@ export function addBuilding(scene: Phaser.Scene) {
     }
 
     const opening = scene.add.graphics({ x: centerX, y: top }).setScale(artScale).setVisible(false)
-    opening.fillStyle(0x393a32).fillPoints(hasFrame ? [
+    opening.fillStyle(0x000000).fillPoints(hasFrame ? [
       { x: -35, y: 24 }, { x: 34, y: 6 }, { x: 34, y: 127 }, { x: -35, y: 103 },
     ] : [
       { x: -34, y: 0 }, { x: 35, y: -2 }, { x: 35, y: 108 }, { x: -34, y: 121 },
     ], true)
-    opening.fillStyle(0x645a4b).fillGradientStyle(0x615a4b, 0x7d7260, 0x302f29, 0x453f34).fillPoints(hasFrame ? [
-      { x: -29, y: 28 }, { x: 28, y: 13 }, { x: 28, y: 114 }, { x: -29, y: 95 },
-    ] : [
-      { x: -28, y: 6 }, { x: 29, y: 4 }, { x: 29, y: 100 }, { x: -28, y: 111 },
-    ], true)
-    opening.fillStyle(0xa99b85).fillGradientStyle(0x655949, 0x786a55, 0xb9aa94, 0xa99b85).fillPoints(hasFrame ? [
-      { x: -35, y: 93 }, { x: 24, y: 105 }, { x: 34, y: 127 }, { x: -35, y: 103 },
-    ] : [
-      { x: -34, y: 99 }, { x: 21, y: 89 }, { x: 35, y: 108 }, { x: -34, y: 121 },
-    ], true)
-
     const panelArt = hasFrame ? interiorArt : officeArt
     const panelScale = hasFrame ? artScale / 3 : artScale
     const left = scene.add.image(centerX - (hasFrame ? 35 : 34) * artScale, top, panelArt, 'door-left')
