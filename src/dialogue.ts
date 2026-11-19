@@ -4,7 +4,6 @@ export type DialogueLine = {
   speaker: 'ihor' | 'npc'
   text: string
   translation?: string
-  autoAdvanceMs?: number
 }
 
 type PortraitSource = Phaser.GameObjects.Image | Phaser.GameObjects.Sprite
@@ -60,16 +59,9 @@ export class OfficeDialogue {
   private readonly speaker: HTMLElement
   private readonly line: HTMLElement
   private readonly translation: HTMLElement
-  private readonly advanceButton: HTMLButtonElement
-  private exchange?: {
-    name: string
-    lines: readonly DialogueLine[]
-    index: number
-    complete: () => void
-  }
   private timer?: number
 
-  constructor(private readonly host: HTMLElement, private readonly ihor: PortraitSource) {
+  constructor(host: HTMLElement, private readonly ihor: PortraitSource) {
     this.panel.className = 'office-dialogue'
     this.panel.hidden = true
     this.panel.setAttribute('aria-label', 'Character dialogue')
@@ -81,7 +73,6 @@ export class OfficeDialogue {
           <p class="dialogue-line"></p>
           <p class="dialogue-translation" hidden></p>
         </div>
-        <button class="dialogue-advance" type="button" aria-label="Continue"></button>
       </div>
       <div class="dialogue-card dialogue-npc" aria-hidden="true"><canvas class="dialogue-portrait" width="192" height="192"></canvas></div>
     `
@@ -90,54 +81,33 @@ export class OfficeDialogue {
     this.speaker = this.panel.querySelector('.dialogue-speaker')!
     this.line = this.panel.querySelector('.dialogue-line')!
     this.translation = this.panel.querySelector('.dialogue-translation')!
-    this.advanceButton = this.panel.querySelector('.dialogue-advance')!
-    this.panel.addEventListener('click', () => this.advance())
     host.append(this.panel)
   }
 
-  get active() { return this.exchange !== undefined }
+  get active() { return this.timer !== undefined }
 
-  open(name: string, npc: PortraitSource, lines: readonly DialogueLine[], complete: () => void) {
-    this.exchange = { name, lines, index: 0, complete }
+  open(name: string, npc: PortraitSource, line: DialogueLine, complete: () => void) {
+    window.clearTimeout(this.timer)
     drawPortrait(this.ihorPortrait, this.ihor)
     drawPortrait(this.npcPortrait, npc, npc.texture.key !== 'standing-woman')
     this.panel.hidden = false
-    this.render()
-    this.advanceButton.focus({ preventScroll: true })
-  }
-
-  destroy() {
-    window.clearTimeout(this.timer)
-    this.exchange = undefined
-    this.panel.remove()
-  }
-
-  private advance() {
-    const exchange = this.exchange
-    if (!exchange) return
-    window.clearTimeout(this.timer)
-    exchange.index++
-    if (exchange.index < exchange.lines.length) {
-      this.render()
-      return
-    }
-    this.exchange = undefined
-    this.panel.hidden = true
-    this.host.focus({ preventScroll: true })
-    exchange.complete()
-  }
-
-  private render() {
-    const exchange = this.exchange!
-    const line = exchange.lines[exchange.index]
     this.panel.dataset.speaker = line.speaker
-    this.speaker.textContent = line.speaker === 'ihor' ? 'Ihor Valeriyovych' : exchange.name
+    this.speaker.textContent = line.speaker === 'ihor' ? 'Igor Valeriyovych' : name
     this.line.textContent = line.text
     this.line.classList.toggle('dialogue-phrase', !!line.translation)
     this.translation.textContent = line.translation ?? ''
     this.translation.hidden = !line.translation
-    this.advanceButton.setAttribute('aria-label', exchange.index === exchange.lines.length - 1 ? 'Finish' : 'Continue')
-    this.timer = line.autoAdvanceMs ? window.setTimeout(() => this.advance(), line.autoAdvanceMs) : undefined
+
+    this.timer = window.setTimeout(() => {
+      this.timer = undefined
+      this.panel.hidden = true
+      complete()
+    }, 3500)
+  }
+
+  destroy() {
+    window.clearTimeout(this.timer)
+    this.timer = undefined
+    this.panel.remove()
   }
 }
-

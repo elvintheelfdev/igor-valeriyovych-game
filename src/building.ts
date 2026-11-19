@@ -67,8 +67,6 @@ export function walkingY(floor: number, x: number) {
 
 export type Destination = { x: number; floor: number }
 
-export const coffeeStop = { x: artX(2058), floor: 0 }
-
 export function walkableDestination(x: number, y: number): Destination | undefined {
   if (sidewalkBounds.contains(x, y)) return { x, floor: 0 }
   if (x < floorBounds.left || x > floorBounds.right) return
@@ -92,7 +90,7 @@ export function addBuilding(scene: Phaser.Scene) {
 
   scene.add.image(buildingLeft, buildingTop, officeArt, '__BASE').setOrigin(0).setScale(artScale)
     .setName('Office building')
-  const { coworkers, coffeeCompanion } = addFurniture(scene, buildingLeft, buildingTop, artScale)
+  const { coworkers, kitchenColleagues } = addFurniture(scene, buildingLeft, buildingTop, artScale)
 
   const texture = scene.textures.get(officeArt)
   if (!texture.has('exit-left')) {
@@ -152,5 +150,5 @@ export function addBuilding(scene: Phaser.Scene) {
   lifts.forEach(draw => draw(0))
   interior(0)
 
-  return { interior, lifts, coworkers, coffeeCompanion }
+  return { interior, lifts, coworkers, kitchenColleagues }
 }

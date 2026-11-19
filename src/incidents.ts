@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { coffeeStop, type Destination } from './building'
+import type { Destination } from './building'
 import { OfficeDialogue } from './dialogue'
 import { dialogueScenes } from './dialogue-scenes'
 
@@ -56,7 +56,7 @@ type Incident = {
   startedAt: number
 }
 
-type Assignment = { incident: Incident } | { coffee: true }
+type Assignment = { incident: Incident } | { coffee: Phaser.GameObjects.Sprite }
 
 const bestKey = 'cosplay-ihor-best'
 
@@ -81,7 +81,7 @@ export class OfficeIncidents {
   private readonly totals: HTMLElement
   private readonly stressMeter: HTMLProgressElement
   private readonly stressLabel: HTMLElement
-  private readonly coffeeButton: HTMLButtonElement
+  private readonly coffeeCount: HTMLElement
   private readonly list: HTMLElement
   private readonly roleCount: Record<Role, number> = { junior: 0, interview: 0, staffing: 0, management: 0, training: 0, event: 0 }
   private assignment?: Assignment
@@ -99,7 +99,6 @@ export class OfficeIncidents {
     host: HTMLElement,
     coworkers: OfficeNPC[],
     ihor: Phaser.GameObjects.Image,
-    private readonly coffeeCompanion: Phaser.GameObjects.Sprite,
     private readonly goTo: (destination?: Destination) => void,
   ) {
     this.colleagues = coworkers.map(npc => {
@@ -118,22 +117,15 @@ export class OfficeIncidents {
       </div>
       <div class="hud-message" role="status">Click an incident to send Ihor. Click the floor to walk.</div>
       <div class="hud-incidents" aria-label="Active incidents"></div>
-      <button class="coffee-button" type="button" disabled>Coffee break · 0</button>
+      <p class="coffee-count">Coffee breaks · 0</p>
     `
     this.status = this.hud.querySelector('.hud-message')!
     this.scoreLabel = this.hud.querySelector('[data-score]')!
     this.totals = this.hud.querySelector('[data-totals]')!
     this.stressLabel = this.hud.querySelector('[data-stress]')!
     this.stressMeter = this.hud.querySelector('progress')!
-    this.coffeeButton = this.hud.querySelector('.coffee-button')!
+    this.coffeeCount = this.hud.querySelector('.coffee-count')!
     this.list = this.hud.querySelector('.hud-incidents')!
-    this.coffeeButton.addEventListener('click', () => {
-      if (this.ended || this.inDialogue || this.coffee === 0 || this.isTakingCoffee()) return
-      this.cancel()
-      this.assignment = { coffee: true }
-      this.goTo(coffeeStop)
-      this.status.textContent = 'Heading outside for coffee'
-    })
 
     this.layer.className = 'incident-layer'
     host.append(this.layer, this.hud)
@@ -147,6 +139,15 @@ export class OfficeIncidents {
 
   get gameOver() { return this.ended }
   get inDialogue() { return this.dialogue.active }
+
+  requestCoffee(person: Phaser.GameObjects.Sprite) {
+    if (this.ended || this.inDialogue) return
+    if (this.assignment && 'coffee' in this.assignment && this.assignment.coffee === person) return
+    this.cancel()
+    this.assignment = { coffee: person }
+    this.goTo({ x: person.x, floor: 0 })
+    this.status.textContent = 'Heading to the kitchen'
+  }
 
   cancel() {
     if (!this.assignment || this.inDialogue) return
@@ -197,10 +198,6 @@ export class OfficeIncidents {
 
   private isSelected(incident: Incident) {
     return this.assignment && 'incident' in this.assignment && this.assignment.incident === incident
-  }
-
-  private isTakingCoffee() {
-    return this.assignment !== undefined && 'coffee' in this.assignment
   }
 
   private spawn(playerFloor: number) {
@@ -274,13 +271,18 @@ export class OfficeIncidents {
     const assignment = this.assignment
     if (!assignment) return
     if ('coffee' in assignment) {
-      if (player.floor !== coffeeStop.floor || Math.abs(player.x - coffeeStop.x) > 0.5) return
-      this.status.textContent = 'Taking a coffee break'
-      this.startDialogue('coffee', this.coffeeCompanion, () => {
-        this.coffee--
-        this.stress = Math.max(0, this.stress - 35)
+      const person = assignment.coffee
+      if (player.floor !== 0 || Math.abs(player.x - person.x) > 0.5) return
+      this.status.textContent = 'At the coffee station'
+      this.startDialogue('coffee', person, () => {
         this.assignment = undefined
-        this.status.textContent = 'Coffee break complete ? Stress reduced'
+        if (this.coffee > 0) {
+          this.coffee--
+          this.stress = Math.max(0, this.stress - 35)
+          this.status.textContent = 'Coffee break complete · Stress reduced'
+        } else {
+          this.status.textContent = 'Help colleagues to earn a coffee break'
+        }
       })
       return
     }
@@ -296,9 +298,9 @@ export class OfficeIncidents {
   private startDialogue(
     key: keyof typeof dialogueScenes, person: Phaser.GameObjects.Sprite, complete: () => void,
   ) {
-    const { name, lines } = dialogueScenes[key]
+    const { name, line } = dialogueScenes[key]
     this.hud.inert = this.layer.inert = true
-    this.dialogue.open(name, person, lines, () => {
+    this.dialogue.open(name, person, line, () => {
       this.hud.inert = this.layer.inert = false
       complete()
       this.render()
@@ -367,7 +369,6 @@ export class OfficeIncidents {
     this.feedback.clear()
     this.render()
     this.status.textContent = 'Shift over · Stress reached 100%'
-    this.coffeeButton.disabled = true
     const restart = document.createElement('button')
     restart.type = 'button'
     restart.className = 'restart-button'
@@ -396,8 +397,7 @@ export class OfficeIncidents {
     this.totals.textContent = this.resolved + ' / ' + this.level
     this.stressMeter.value = this.stress
     this.stressLabel.textContent = this.stress + '%'
-    this.coffeeButton.textContent = 'Coffee break · ' + this.coffee
-    this.coffeeButton.disabled = this.coffee === 0 || this.isTakingCoffee()
+    this.coffeeCount.textContent = 'Coffee breaks · ' + this.coffee
     for (const incident of this.active) {
       const { npc, marker, entry } = incident
       const task = incidents[npc.role]

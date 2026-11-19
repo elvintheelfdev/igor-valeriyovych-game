@@ -70,7 +70,7 @@ class Office extends Phaser.Scene {
     let passageTarget: number | undefined
     const insideLanding = interiorDoorX - 42
     let followPending = false
-    const gameplay = new OfficeIncidents(this, host, doors.coworkers, igor, doors.coffeeCompanion,
+    const gameplay = new OfficeIncidents(this, host, doors.coworkers, igor,
       target => { destination = target })
     const walkTo = (target: Destination) => {
       gameplay.cancel()
@@ -214,9 +214,14 @@ class Office extends Phaser.Scene {
       camera.scrollX -= (pointer.x - pointer.prevPosition.x) / camera.zoom
       camera.scrollY -= (pointer.y - pointer.prevPosition.y) / camera.zoom
     })
-    this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+    this.input.on('pointerup', (pointer: Phaser.Input.Pointer, targets: Phaser.GameObjects.GameObject[]) => {
       if (gameplay.gameOver || gameplay.inDialogue || pointer.button !== 0 || pointer.getDistance() >= dragThreshold) return
       if (pointer.event.target instanceof HTMLElement && pointer.event.target.closest('button')) return
+      const colleague = doors.kitchenColleagues.find(person => targets.includes(person))
+      if (colleague) {
+        gameplay.requestCoffee(colleague)
+        return
+      }
       const point = camera.getWorldPoint(pointer.x, pointer.y)
       if (interiorDoorBounds.contains(point.x, point.y)) {
         walkTo({ x: floor === 0 && igor.x >= entranceX ? insideLanding : sidewalkStart, floor: 0 })

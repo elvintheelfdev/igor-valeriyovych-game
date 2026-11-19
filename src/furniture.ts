@@ -331,10 +331,19 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     return person
   }
 
-  placeCoffeeDrinker(0, 1308, 788, 73)
-  placeCoffeeDrinker(1, 1390, 791, 81, true)
+  const kitchenColleagues = [
+    placeCoffeeDrinker(0, 1308, 788, 73),
+    placeCoffeeDrinker(1, 1390, 791, 81, true),
+  ]
+  for (const colleague of kitchenColleagues) {
+    colleague.setInteractive({
+      hitArea: new Phaser.Geom.Rectangle(colleague.width * 0.36, 0, colleague.width * 0.37, colleague.height),
+      hitAreaCallback: Phaser.Geom.Rectangle.Contains,
+      useHandCursor: true,
+    })
+  }
   // Keep the coffee group at the back of the pavement, clear of Igor's silhouette.
-  const coffeeCompanion = placeCoffeeDrinker(2, 2005, 754, 77)
+  placeCoffeeDrinker(2, 2005, 754, 77)
   placeCoffeeDrinker(3, 2115, 759, 80, true)
 
   const { person: walker, shadow } = placeCoworker(walking, 1103, 226, 80)
@@ -364,5 +373,5 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     },
   })
 
-  return { coworkers, coffeeCompanion }
+  return { coworkers, kitchenColleagues }
 }
