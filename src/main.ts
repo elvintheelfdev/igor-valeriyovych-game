@@ -39,7 +39,13 @@ class Office extends Phaser.Scene {
 
     const camera = this.cameras.main
     camera.setBounds(0, 0, worldWidth, worldHeight)
+    let overview = false
     const resizeCamera = (size: Phaser.Structs.Size) => {
+      if (overview) {
+        camera.setZoom(Math.min(size.width / worldWidth, size.height / worldHeight))
+        camera.centerOn(worldWidth / 2, worldHeight / 2)
+        return
+      }
       camera.setZoom(Math.max(size.width / worldWidth, size.height / cameraViewHeight))
     }
     resizeCamera(this.scale.gameSize)
@@ -155,6 +161,7 @@ class Office extends Phaser.Scene {
       }
       if (destination?.floor === floor && destination.x === igor.x) destination = undefined
 
+      if (overview) return
       const centerX = camera.scrollX + camera.width / 2
       const centerY = camera.scrollY + camera.height / 2
       const marginX = camera.width / camera.zoom * 0.28
@@ -174,7 +181,7 @@ class Office extends Phaser.Scene {
     })
     this.input.on('pointerdown', () => host.focus({ preventScroll: true }))
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!pointer.isDown || pointer.getDistance() < dragThreshold) return
+      if (overview || !pointer.isDown || pointer.getDistance() < dragThreshold) return
       camera.scrollX -= (pointer.x - pointer.prevPosition.x) / camera.zoom
       camera.scrollY -= (pointer.y - pointer.prevPosition.y) / camera.zoom
     })
@@ -200,11 +207,23 @@ class Office extends Phaser.Scene {
     })
     host.addEventListener('wheel', (event) => {
       event.preventDefault()
+      if (overview) return
       const multiplier = event.deltaMode === 1 ? 16 : 1
       camera.scrollX += (event.deltaX + (event.shiftKey ? event.deltaY : 0)) * multiplier / camera.zoom
       if (!event.shiftKey) camera.scrollY += event.deltaY * multiplier / camera.zoom
     }, { passive: false, signal })
     window.addEventListener('keydown', (event) => {
+      if (event.code === 'Space') {
+        event.preventDefault()
+        if (event.repeat) return
+        overview = !overview
+        // The overview can show space beyond the world on the non-limiting axis.
+        if (overview) camera.removeBounds()
+        else camera.setBounds(0, 0, worldWidth, worldHeight)
+        resizeCamera(this.scale.gameSize)
+        if (!overview) camera.centerOn(igor.x, igor.y - igorHeight / 2)
+        return
+      }
       if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return
       event.preventDefault()
       if (event.repeat || elevatorFloor !== undefined) return
