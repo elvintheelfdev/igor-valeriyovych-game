@@ -97,24 +97,39 @@ export function addBuilding(scene: Phaser.Scene) {
   }
 
   const lifts = [
-    { top: 672, rightTop: 1, bottom: 114, rightBottom: 102 },
-    { top: 490, rightTop: 2, bottom: 118, rightBottom: 107 },
-    { top: 297, rightTop: 3, bottom: 124, rightBottom: 112 },
-    { top: 100, rightTop: 7, bottom: 126, rightBottom: 115 },
+    { top: 679, rightTop: 1, bottom: 110, rightBottom: 98 },
+    { top: 499, rightTop: 1, bottom: 116, rightBottom: 105 },
+    { top: 304, rightTop: 4, bottom: 120, rightBottom: 109 },
+    { top: 105, rightTop: 8, bottom: 123, rightBottom: 112 },
   ].map(({ top, rightTop, bottom, rightBottom }, floor) => {
     const frame = `lift-door-${floor}`
-    if (!texture.has(frame)) texture.add(frame, 0, 258, top, 32, bottom)
-    const opening = scene.add.graphics({ x: artX(258), y: artY(top) }).setScale(artScale)
-    opening.fillStyle(0x000000).fillPoints([
-      { x: 0, y: 0 }, { x: 32, y: rightTop }, { x: 32, y: rightBottom }, { x: 0, y: bottom },
-    ], true)
-    const left = scene.add.image(artX(258), artY(top), officeArt, frame).setOrigin(0)
-    const right = scene.add.image(artX(290), artY(top), officeArt, frame).setOrigin(1, 0)
+    const x = 256
+    const width = 27
+    const aperture = [
+      { x: 0, y: 0 }, { x: width, y: rightTop }, { x: width, y: rightBottom }, { x: 0, y: bottom },
+    ]
+    if (!scene.textures.exists(frame)) {
+      const panels = scene.textures.createCanvas(frame, width, bottom)!
+      const context = panels.context
+      context.beginPath()
+      context.moveTo(aperture[0].x, aperture[0].y)
+      for (const point of aperture.slice(1)) context.lineTo(point.x, point.y)
+      context.closePath()
+      context.clip()
+      const source = texture.getSourceImage('__BASE') as HTMLImageElement
+      context.drawImage(source, x, top, width, bottom, 0, 0, width, bottom)
+      panels.refresh()
+    }
+    const opening = scene.add.graphics({ x: artX(x), y: artY(top) }).setScale(artScale)
+    opening.fillStyle(0x000000).fillPoints(aperture, true)
+    const left = scene.add.image(artX(x), artY(top), frame).setOrigin(0).setScale(artScale)
+    const right = scene.add.image(artX(x + width), artY(top), frame).setOrigin(1, 0).setScale(artScale)
     return (progress: number) => {
-      const width = Math.round(16 * (1 - progress))
+      const leftWidth = Math.round(13 * (1 - progress))
+      const rightWidth = Math.round(14 * (1 - progress))
       opening.setVisible(progress > 0)
-      left.setScale(artScale).setCrop(0, 0, width, bottom).setVisible(progress > 0 && width > 0)
-      right.setScale(artScale).setCrop(32 - width, 0, width, bottom).setVisible(progress > 0 && width > 0)
+      left.setCrop(0, 0, leftWidth, bottom).setVisible(progress > 0 && leftWidth > 0)
+      right.setCrop(width - rightWidth, 0, rightWidth, bottom).setVisible(progress > 0 && rightWidth > 0)
     }
   })
   lifts.forEach(draw => draw(0))
