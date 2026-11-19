@@ -12,30 +12,27 @@ const buildingLeft = 32
 const foundationY = 766
 const buildingTop = foundationY - artHeight * artScale
 // Foot positions follow the center of each elevator threshold.
-export const floorLevels = [765, 588, 408, 227].map(y => buildingTop + y * artScale)
-export const elevatorX = buildingLeft + 304 * artScale
+export const floorLevels = [781, 604, 416, 222].map(y => buildingTop + y * artScale)
+export const elevatorX = buildingLeft + 274 * artScale
 export const floorBounds = { left: elevatorX, right: buildingLeft + 1749 * artScale }
 
 const artX = (x: number) => buildingLeft + x * artScale
 const artY = (y: number) => buildingTop + y * artScale
+const exitThresholdY = artY(786)
 const groundRoute = [
-  { x: artX(1648), y: floorLevels[0] },
-  { x: artX(1812), y: artY(778) },
-  { x: artX(1902), y: artY(807) },
-  { x: artX(1932), y: 780 },
+  { x: artX(1595), y: floorLevels[0] },
+  { x: artX(1715), y: exitThresholdY },
+  { x: artX(1902), y: exitThresholdY },
 ]
 export const streetRight = worldWidth - 24
-export const entranceX = groundRoute[1].x
-export const interiorDoorX = artX(1708)
+export const interiorDoorX = groundRoute[1].x
 export const sidewalkStart = groundRoute[groundRoute.length - 1].x
-export const entranceBounds = new Phaser.Geom.Rectangle(
-  artX(1766), artY(614), 110 * artScale, 172 * artScale,
-)
+export const entranceX = sidewalkStart
 export const interiorDoorBounds = new Phaser.Geom.Rectangle(
-  interiorDoorX - 40 * artScale, groundY(interiorDoorX) - 122 * artScale, 80 * artScale, 128 * artScale,
+  artX(1664), artY(646), 101 * artScale, 152 * artScale,
 )
 export const sidewalkBounds = new Phaser.Geom.Rectangle(
-  groundRoute[1].x, artY(786), streetRight - groundRoute[1].x, 805 - artY(786),
+  sidewalkStart, 698, streetRight - sidewalkStart, 107,
 )
 
 export function groundY(x: number) {
@@ -48,9 +45,9 @@ export function groundY(x: number) {
   return groundRoute[groundRoute.length - 1].y
 }
 
-const rightWallStart = artX(1648)
+const rightWallStart = artX(1595)
 // Keep feet on the floor in front of the angled wall on each upper floor.
-const rightFloorEdge = [765, 609, 429, 246].map(artY)
+const rightFloorEdge = [781, 620, 432, 235].map(artY)
 
 export function walkingY(floor: number, x: number) {
   if (floor === 0) return groundY(x)
@@ -71,79 +68,47 @@ export function addBuilding(scene: Phaser.Scene) {
     .setName('Office building')
 
   const texture = scene.textures.get(officeArt)
-  const source = texture.getSourceImage('__BASE') as HTMLImageElement
-  if (!texture.has('door-left')) {
-    texture.add('door-left', 0, 1777, 666, 34, 121)
-    texture.add('door-right', 0, 1811, 666, 35, 121)
+  if (!texture.has('exit-left')) {
+    texture.add('exit-left', 0, 1671, 671, 44, 122)
+    texture.add('exit-right', 0, 1715, 671, 44, 122)
+  }
+  const opening = scene.add.graphics({ x: artX(1671), y: artY(671) }).setScale(artScale)
+  opening.fillStyle(0x000000).fillPoints([
+    { x: 0, y: 0 }, { x: 88, y: 1 }, { x: 88, y: 122 }, { x: 0, y: 106 },
+  ], true)
+  const leftExit = scene.add.image(artX(1671), artY(671), officeArt, 'exit-left').setOrigin(0)
+  const rightExit = scene.add.image(artX(1759), artY(671), officeArt, 'exit-right').setOrigin(1, 0)
+  const interior = (progress: number) => {
+    const open = progress > 0
+    const width = Math.cos(progress * Math.PI * 0.42) * artScale
+    opening.setVisible(open)
+    leftExit.setVisible(open).setScale(width, artScale)
+    rightExit.setVisible(open).setScale(width, artScale)
   }
 
-  const interiorArt = 'interior-office-door'
-  if (!scene.textures.exists(interiorArt)) {
-    const resolution = 3
-    const warped = scene.textures.createCanvas(interiorArt, 80 * resolution, 132 * resolution)!
-    for (let x = 0; x < warped.width; x++) {
-      const fraction = x / (warped.width - 1)
-      const top = Phaser.Math.Linear(24, 1, fraction)
-      const bottom = Phaser.Math.Linear(102, 131, fraction)
-      const sourceTop = Phaser.Math.Linear(666, 672, fraction)
-      const sourceBottom = Phaser.Math.Linear(775, 786, fraction)
-      warped.context.drawImage(source, 1849 - fraction * 77, sourceTop, 1, sourceBottom - sourceTop,
-        x, top * resolution, 1, (bottom - top) * resolution)
-    }
-    warped.refresh()
-    warped.add('door-left', 0, 15, 0, 105, 396)
-    warped.add('door-right', 0, 120, 0, 102, 396)
-  }
-
-  const addDoor = (centerX: number, top: number, hasFrame: boolean) => {
-    if (hasFrame) {
-      scene.add.image(centerX - 40 * artScale, top, interiorArt, '__BASE')
-        .setOrigin(0).setScale(artScale / 3).setName('Interior door frame')
-    }
-
-    const opening = scene.add.graphics({ x: centerX, y: top }).setScale(artScale).setVisible(false)
-    opening.fillStyle(0x000000).fillPoints(hasFrame ? [
-      { x: -35, y: 24 }, { x: 34, y: 6 }, { x: 34, y: 127 }, { x: -35, y: 103 },
-    ] : [
-      { x: -34, y: 0 }, { x: 35, y: -2 }, { x: 35, y: 108 }, { x: -34, y: 121 },
-    ], true)
-    const panelArt = hasFrame ? interiorArt : officeArt
-    const panelScale = hasFrame ? artScale / 3 : artScale
-    const left = scene.add.image(centerX - (hasFrame ? 35 : 34) * artScale, top, panelArt, 'door-left')
-      .setOrigin(0).setName('Left door panel')
-    const right = scene.add.image(centerX + (hasFrame ? 34 : 35) * artScale, top, panelArt, 'door-right')
-      .setOrigin(1, 0).setName('Right door panel')
-
-    return (progress: number) => {
-      const open = progress > 0
-      const width = Math.cos(progress * Math.PI * 0.42) * panelScale
-      opening.setVisible(open)
-      left.setVisible(open).setScale(width, panelScale)
-      right.setVisible(open).setScale(width, panelScale)
-    }
-  }
-
-  const interior = addDoor(interiorDoorX, groundY(interiorDoorX) - 117 * artScale, true)
-  const street = addDoor(artX(1811), artY(666), false)
-  const lifts = [664, 486, 303, 113].map((top, floor) => {
-    const height = [108, 107, 111, 117][floor]
+  const lifts = [
+    { top: 672, rightTop: 1, bottom: 114, rightBottom: 102 },
+    { top: 490, rightTop: 2, bottom: 118, rightBottom: 107 },
+    { top: 297, rightTop: 3, bottom: 124, rightBottom: 112 },
+    { top: 100, rightTop: 7, bottom: 126, rightBottom: 115 },
+  ].map(({ top, rightTop, bottom, rightBottom }, floor) => {
     const frame = `lift-door-${floor}`
-    if (!texture.has(frame)) texture.add(frame, 0, 286, top + 7, 34, height - 7)
-    const opening = scene.add.graphics({ x: artX(286), y: artY(top) }).setScale(artScale)
+    if (!texture.has(frame)) texture.add(frame, 0, 258, top, 32, bottom)
+    const opening = scene.add.graphics({ x: artX(258), y: artY(top) }).setScale(artScale)
     opening.fillStyle(0x000000).fillPoints([
-      { x: 0, y: 7 }, { x: 34, y: 15 }, { x: 34, y: height - 13 }, { x: 0, y: height },
+      { x: 0, y: 0 }, { x: 32, y: rightTop }, { x: 32, y: rightBottom }, { x: 0, y: bottom },
     ], true)
-    const left = scene.add.image(artX(286), artY(top + 7), officeArt, frame).setOrigin(0)
-    const right = scene.add.image(artX(320), artY(top + 7), officeArt, frame).setOrigin(1, 0)
+    const left = scene.add.image(artX(258), artY(top), officeArt, frame).setOrigin(0)
+    const right = scene.add.image(artX(290), artY(top), officeArt, frame).setOrigin(1, 0)
     return (progress: number) => {
-      const width = Math.round(17 * (1 - progress))
+      const width = Math.round(16 * (1 - progress))
       opening.setVisible(progress > 0)
-      left.setScale(artScale).setCrop(0, 0, width, height - 7).setVisible(progress > 0 && width > 0)
-      right.setScale(artScale).setCrop(34 - width, 0, width, height - 7).setVisible(progress > 0 && width > 0)
+      left.setScale(artScale).setCrop(0, 0, width, bottom).setVisible(progress > 0 && width > 0)
+      right.setScale(artScale).setCrop(32 - width, 0, width, bottom).setVisible(progress > 0 && width > 0)
     }
   })
   lifts.forEach(draw => draw(0))
   interior(0)
-  street(0)
-  return { interior, street, lifts }
+
+  return { interior, lifts }
 }
