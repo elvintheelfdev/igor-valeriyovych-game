@@ -115,7 +115,25 @@ export function addBuilding(scene: Phaser.Scene) {
 
   const interior = addDoor(interiorDoorX, groundY(interiorDoorX) - 117 * artScale, true)
   const street = addDoor(artX(1811), artY(666), false)
+  const lifts = [664, 486, 303, 113].map((top, floor) => {
+    const height = [108, 107, 111, 117][floor]
+    const frame = `lift-door-${floor}`
+    if (!texture.has(frame)) texture.add(frame, 0, 286, top + 7, 34, height - 7)
+    const opening = scene.add.graphics({ x: artX(286), y: artY(top) }).setScale(artScale)
+    opening.fillStyle(0x000000).fillPoints([
+      { x: 0, y: 7 }, { x: 34, y: 15 }, { x: 34, y: height - 13 }, { x: 0, y: height },
+    ], true)
+    const left = scene.add.image(artX(286), artY(top + 7), officeArt, frame).setOrigin(0)
+    const right = scene.add.image(artX(320), artY(top + 7), officeArt, frame).setOrigin(1, 0)
+    return (progress: number) => {
+      const width = Math.round(17 * (1 - progress))
+      opening.setVisible(progress > 0)
+      left.setScale(artScale).setCrop(0, 0, width, height - 7).setVisible(progress > 0 && width > 0)
+      right.setScale(artScale).setCrop(34 - width, 0, width, height - 7).setVisible(progress > 0 && width > 0)
+    }
+  })
+  lifts.forEach(draw => draw(0))
   interior(0)
   street(0)
-  return { interior, street }
+  return { interior, street, lifts }
 }

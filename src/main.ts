@@ -55,6 +55,8 @@ class Office extends Phaser.Scene {
     const d = keyboard.addKey(keyCodes.D, false)
     let floor = 0
     let elevatorFloor: number | undefined
+    let elevatorPhase: 'boarding' | 'travel' | 'leaving' = 'boarding'
+    const liftProgress = floorLevels.map(() => 0)
     let destination: { x: number; floor: number } | undefined
     let strideDistance = 0
     let interiorDoorProgress = 0
@@ -77,28 +79,46 @@ class Office extends Phaser.Scene {
       }
       interiorDoorProgress = updateDoor(interiorDoorProgress, interiorDoorX, doors.interior)
       streetDoorProgress = updateDoor(streetDoorProgress, entranceX, doors.street)
+      for (let index = 0; index < liftProgress.length; index++) {
+        const open = elevatorFloor !== undefined && (
+          (elevatorPhase === 'boarding' && index === floor)
+          || (elevatorPhase === 'leaving' && index === elevatorFloor)
+        )
+        const next = Phaser.Math.Clamp(liftProgress[index] + (open ? 1 : -1) * doorSpeed * seconds, 0, 1)
+        if (next !== liftProgress[index]) doors.lifts[index](Phaser.Math.Easing.Sine.InOut(next))
+        liftProgress[index] = next
+      }
       if (elevatorFloor === undefined) {
         if (direction !== 0) destination = undefined
         if (destination && destination.floor !== floor && igor.x === elevatorX) {
           elevatorFloor = destination.floor
+          elevatorPhase = 'boarding'
           showIdle()
-          igor.setVisible(false)
-          shadow.setVisible(false)
         }
       }
 
       if (elevatorFloor !== undefined) {
+        if (elevatorPhase === 'boarding') {
+          if (liftProgress[floor] < 1) return
+          igor.setVisible(false)
+          shadow.setVisible(false)
+          elevatorPhase = 'travel'
+          return
+        }
+        if (elevatorPhase === 'leaving') {
+          if (liftProgress[elevatorFloor] < 1) return
+          floor = elevatorFloor
+          elevatorFloor = undefined
+          igor.setVisible(true)
+          shadow.setVisible(true)
+          return
+        }
         const targetY = floorLevels[elevatorFloor]
         const distance = targetY - igor.y
         const step = elevatorSpeed * seconds
         igor.y = Math.abs(distance) <= step ? targetY : igor.y + Math.sign(distance) * step
         shadow.y = igor.y
-        if (igor.y === targetY) {
-          floor = elevatorFloor
-          elevatorFloor = undefined
-          igor.setVisible(true)
-          shadow.setVisible(true)
-        }
+        if (igor.y === targetY) elevatorPhase = 'leaving'
       } else {
         const rightBound = floor === 0 ? streetRight : floorBounds.right
         const targetX = passageTarget ?? (direction !== 0 ? (direction > 0 ? rightBound : floorBounds.left)
