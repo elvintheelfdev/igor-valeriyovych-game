@@ -25,8 +25,6 @@ const props = {
 
 const coworkers = {
   'seated-man': new URL('./people/seated-man.png', import.meta.url).href,
-  'standing-man': new URL('./people/standing-man.png', import.meta.url).href,
-  'standing-woman': new URL('./people/standing-woman.png', import.meta.url).href,
 }
 
 const typing = 'coworker-typing'
@@ -37,7 +35,52 @@ const walkFrameSize = 443
 const walkBaseline = 424
 const walkFrameCount = 8
 
+const seatedCrew = 'seated-crew'
+const coffeeCrew = 'coffee-crew'
+
+function registerCrewFrames(scene: Phaser.Scene, key: string, columns: number, rows: number, count: number) {
+  const texture = scene.textures.get(key)
+  if (texture.has('0')) return texture
+  const image = texture.getSourceImage() as HTMLImageElement
+  const canvas = document.createElement('canvas')
+  canvas.width = image.width
+  canvas.height = image.height
+  const context = canvas.getContext('2d', { willReadFrequently: true })!
+  context.drawImage(image, 0, 0)
+  const pixels = context.getImageData(0, 0, image.width, image.height).data
+
+  for (let index = 0; index < count; index++) {
+    const column = index % columns
+    const row = Math.floor(index / columns)
+    const x = Math.round(column * image.width / columns)
+    const y = Math.round(row * image.height / rows)
+    const right = Math.round((column + 1) * image.width / columns)
+    const bottom = Math.round((row + 1) * image.height / rows)
+    let minX = right
+    let minY = bottom
+    let maxX = x
+    let maxY = y
+    for (let py = y; py < bottom; py++) {
+      for (let px = x; px < right; px++) {
+        if (pixels[(py * image.width + px) * 4 + 3] < 100) continue
+        minX = Math.min(minX, px)
+        minY = Math.min(minY, py)
+        maxX = Math.max(maxX, px)
+        maxY = Math.max(maxY, py)
+      }
+    }
+    if (minX > maxX || minY > maxY) {
+      throw new Error('Missing character in ' + key + ' at index ' + index)
+    }
+    texture.add(String(index), 0, minX, minY, maxX - minX + 1, maxY - minY + 1)
+  }
+
+  return texture
+}
+
 export function loadFurniture(scene: Phaser.Scene) {
+  scene.load.image(seatedCrew, new URL('./people/seated-crew.png', import.meta.url).href)
+  scene.load.image(coffeeCrew, new URL('./people/coffee-crew.png', import.meta.url).href)
   for (const [key, prop] of Object.entries(props)) scene.load.image(key, prop.url)
   for (const [key, url] of Object.entries(coworkers)) scene.load.image(key, url)
   scene.load.spritesheet(typing, new URL('./people/coworker-typing.png', import.meta.url).href, {
@@ -69,11 +112,52 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
     return { person, shadow }
   }
 
+  registerCrewFrames(scene, seatedCrew, 5, 5, 21)
+  const coffeeTexture = scene.textures.get(coffeeCrew)
+  if (!coffeeTexture.has('0')) {
+    const { width, height } = coffeeTexture.get()
+    for (let index = 0; index < 12; index++) {
+      const column = index % 3
+      const row = Math.floor(index / 3)
+      const x = Math.round(column * width / 3)
+      const y = Math.round(row * height / 4)
+      const right = Math.round((column + 1) * width / 3)
+      const bottom = Math.round((row + 1) * height / 4)
+      coffeeTexture.add(String(index), 0, x, y, right - x, bottom - y)
+    }
+  }
+  let seatedIndex = 0
+
+  const animateSeated = (person: Phaser.GameObjects.Sprite, index: number) => {
+    scene.tweens.add({
+      targets: person,
+      angle: { from: person.angle, to: person.flipX ? -1.7 : 1.7 },
+      duration: 240 + index % 4 * 75,
+      yoyo: true,
+      repeat: -1,
+      delay: index * 113 % 1600,
+      repeatDelay: 630 + index % 6 * 330,
+      ease: 'Sine.InOut',
+    })
+  }
+
   const seatCoworker = (woman: boolean, x: number, y: number, mirrored: boolean) => {
+    const index = seatedIndex++
+    if (index >= 2) {
+      const flip = woman ? !mirrored : mirrored
+      const direction = flip ? -1 : 1
+      const person = scene.add.sprite(left + (x + direction * 9) * scale, top + (y - 29) * scale,
+        seatedCrew, String(index - 2))
+      person.setOrigin(0.5, 0.80).setFlipX(flip)
+        .setScale((53 + index % 5) * scale / person.height)
+      animateSeated(person, index)
+      return
+    }
     // Align the animated hips with the seat cushion and the hands with the keyboard.
     const { person } = woman
       ? placeCoworker(typing, x + (mirrored ? 8 : -8), y - 12, 64, !mirrored)
       : placeCoworker('seated-man', x + (mirrored ? -4 : 4), y - 12, 66, mirrored)
+    if (!woman) animateSeated(person, index)
     if (woman) {
       person.play({ key: typing, delay: Phaser.Math.Between(0, 900), repeatDelay: Phaser.Math.Between(400, 2400) })
     }
@@ -206,8 +290,38 @@ export function addFurniture(scene: Phaser.Scene, left: number, top: number, sca
   place('meeting-table', 1007, topFloor + 10)
   place('executive-desk', 1415, topFloor)
   place('sideboard', 1539, topFloor, true)
-  placeCoworker('standing-man', 1290, 786, 80)
-  placeCoworker('standing-woman', 1350, 786, 77)
+  const placeCoffeeDrinker = (index: number, x: number, y: number, height: number, flip = false) => {
+    const first = index * 3
+    const rest = String(first)
+    const lift = String(first + 1)
+    const sip = String(first + 2)
+    const worldX = left + x * scale
+    const worldY = top + y * scale
+    scene.add.ellipse(worldX, worldY, 24 * scale, 5 * scale, 0x392c23, 0.18)
+    const person = scene.add.sprite(worldX, worldY, coffeeCrew, rest)
+    person.setOrigin(0.53, 0.98).setFlipX(flip).setScale(height * scale / person.height)
+    const key = 'coffee-sip-' + index
+    if (!scene.anims.exists(key)) {
+      scene.anims.create({
+        key,
+        frames: [
+          { key: coffeeCrew, frame: rest, duration: 2400 + 620 * index },
+          { key: coffeeCrew, frame: lift, duration: 260 },
+          { key: coffeeCrew, frame: sip, duration: 1450 },
+          { key: coffeeCrew, frame: lift, duration: 310 },
+        ],
+        frameRate: 8,
+        repeat: -1,
+      })
+    }
+    person.play({ key, delay: index * 390 })
+  }
+
+  placeCoffeeDrinker(0, 1308, 788, 73)
+  placeCoffeeDrinker(1, 1390, 791, 81, true)
+  // The smoking area is on the pavement just outside the entrance.
+  placeCoffeeDrinker(2, 2005, 804, 77)
+  placeCoffeeDrinker(3, 2115, 811, 80, true)
 
   const { person: walker, shadow } = placeCoworker(walking, 1103, 226, 80)
   const startX = walker.x
